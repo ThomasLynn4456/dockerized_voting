@@ -1,0 +1,387 @@
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Georgia,serif;
+}
+
+body{
+
+height:100vh;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+overflow:hidden;
+
+background:#071B42;
+
+}
+
+/* University Background */
+
+body::before{
+
+content:"";
+
+position:absolute;
+
+width:100%;
+
+height:100%;
+
+background:url("img/images.jpg");
+
+background-size:cover;
+
+background-position:center;
+
+opacity:.18;
+
+filter:blur(2px);
+
+}
+
+/* Dark Overlay */
+
+.overlay{
+
+position:absolute;
+
+width:100%;
+
+height:100%;
+
+background:rgba(3,18,48,.55);
+
+}
+
+/* Glass Card */
+
+.container{
+
+position:relative;
+z-index:2;
+
+width:min(90%,700px);
+min-height:85vh;
+
+padding:60px 50px;
+
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+
+background:rgba(255,255,255,0.06);
+
+
+
+border:1px solid rgba(255,255,255,0.15);
+
+border-radius:16px;   
+
+box-shadow:
+0 20px 60px rgba(0,0,0,.45);
+
+}
+
+.corner{
+
+position:absolute;
+
+width:50px;
+height:50px;
+
+border-color:#D4AF37;
+
+}
+
+/* Top Left */
+
+.top-left{
+
+top:20px;
+left:20px;
+
+border-top:2px solid #D4AF37;
+border-left:2px solid #D4AF37;
+
+}
+
+/* Top Right */
+
+.top-right{
+
+top:20px;
+right:20px;
+
+border-top:2px solid #D4AF37;
+border-right:2px solid #D4AF37;
+
+}
+
+/* Bottom Left */
+
+.bottom-left{
+
+bottom:20px;
+left:20px;
+
+border-bottom:2px solid #D4AF37;
+border-left:2px solid #D4AF37;
+
+}
+
+/* Bottom Right */
+
+.bottom-right{
+
+bottom:20px;
+right:20px;
+
+border-bottom:2px solid #D4AF37;
+border-right:2px solid #D4AF37;
+
+}
+
+
+
+/* Logo */
+
+.logo-wrapper{
+    background: transparent;
+    width: auto;
+    height: auto;
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+.logo{
+    width:200px;
+    height:200px;
+    object-fit:contain;
+
+    border:none;
+    border-radius:0;
+    background:transparent;
+
+    box-shadow:none;
+    filter:none;
+}
+@keyframes logoFloat {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+.small-title{
+
+letter-spacing:4px;
+
+color:#D7B56D;
+
+font-size:14px;
+
+}
+
+h1{
+
+font-size:60px;
+
+color:white;
+
+margin-top:20px;
+
+}
+
+h2{
+
+font-size:52px;
+
+color:#E8C25D;
+
+font-style:italic;
+
+margin-bottom:20px;
+
+}
+
+.year{
+
+color:#d9bf78;
+
+letter-spacing:3px;
+
+margin-bottom:30px;
+
+}
+
+.tagline{
+
+color:white;
+
+opacity:.8;
+
+margin-bottom:35px;
+
+}
+
+/* Button */
+
+button{
+
+padding:18px 60px;
+
+border:none;
+
+border-radius:50px;
+
+font-size:20px;
+
+font-weight:bold;
+
+cursor:pointer;
+
+background:linear-gradient(45deg,#E0B347,#FFD978);
+
+transition:.4s;
+
+box-shadow:
+
+0 0 20px rgba(255,215,0,.45);
+
+}
+
+button:hover{
+
+transform:translateY(-4px);
+
+box-shadow:
+
+0 0 35px gold;
+
+}
+
+.vote-btn{
+    display:inline-block;
+    text-decoration:none;
+    text-align:center;
+}
+
+
+
+.quote{
+
+margin-top:40px;
+
+color:#ddd;
+
+font-style:italic;
+
+}
+
+/* Floating Particles */
+
+#particles{
+
+position:absolute;
+
+width:100%;
+
+height:100%;
+
+overflow:hidden;
+
+}
+
+.particle{
+
+position:absolute;
+
+width:5px;
+
+height:5px;
+
+background:gold;
+
+border-radius:50%;
+
+animation:float linear infinite;
+
+}
+
+@keyframes float{
+
+0%{
+
+transform:translateY(100vh);
+
+opacity:0;
+
+}
+
+20%{
+
+opacity:1;
+
+}
+
+100%{
+
+transform:translateY(-100vh);
+
+opacity:0;
+
+}
+
+}
+
+
+
+@media (max-width:768px){
+
+.container{
+    width:95%;
+    min-height:90vh;
+    padding:30px 20px;
+}
+
+.logo{
+    width:145px;
+    height:145px;
+}
+
+.logo-wrapper{
+    width:170px;
+    height:170px;
+}
+
+
+
+h1{
+    font-size:48px;
+}
+
+h2{
+    font-size:40px;
+}
+
+.tagline{
+    font-size:16px;
+}
+
+button{
+    width:100%;
+    padding:15px;
+    font-size:18px;
+}
+
+}

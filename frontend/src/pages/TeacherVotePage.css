@@ -1,0 +1,157 @@
+.teacher-vote-page,
+.teacher-vote-state {
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: #f7f9ff;
+  font-family: Arial, sans-serif;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(48, 86, 168, 0.28), transparent 30%),
+    linear-gradient(160deg, #02051a, #081632 55%, #03071a);
+}
+
+.teacher-vote-state {
+  padding: 28px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  color: #ffe7a3;
+  text-align: center;
+}
+
+.teacher-vote-state img { width: 100px; }
+.teacher-vote-state h1 { margin: 0; font-family: "Playfair Display", serif; }
+.teacher-vote-state p { max-width: 440px; margin: 0; color: #cbd6ec; }
+
+.teacher-loader {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(255, 224, 138, 0.2);
+  border-top-color: #ffe08a;
+  border-radius: 50%;
+  animation: teacher-spin 0.8s linear infinite;
+}
+
+.teacher-vote-header {
+  padding: 24px clamp(18px, 5vw, 60px);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255, 218, 117, 0.3);
+  background: rgba(2, 5, 25, 0.88);
+  backdrop-filter: blur(16px);
+}
+
+.teacher-vote-header img { width: 76px; height: 76px; object-fit: contain; }
+.teacher-vote-header span { color: #e8b94d; font-size: 10px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; }
+.teacher-vote-header h1 { margin: 3px 0 5px; color: #fff0bd; font-family: "Playfair Display", serif; font-size: clamp(28px, 5vw, 44px); }
+.teacher-vote-header p { margin: 0; display: flex; align-items: center; gap: 7px; color: #b9c7e3; font-size: 12px; }
+.teacher-vote-header p i { width: 7px; height: 7px; border-radius: 50%; background: #61e39b; box-shadow: 0 0 9px #61e39b; }
+
+.teacher-alert {
+  position: sticky;
+  top: 12px;
+  z-index: 100;
+  width: min(92%, 720px);
+  margin: 16px auto;
+  padding: 13px 16px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 14px;
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.3);
+  animation: teacher-alert-in 0.3s ease both;
+}
+.teacher-alert.success { background: rgba(17, 91, 58, 0.96); }
+.teacher-alert.error { background: rgba(119, 30, 39, 0.96); }
+
+.teacher-gender-tabs {
+  width: min(92%, 520px);
+  margin: 24px auto;
+  padding: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  border: 1px solid rgba(125, 151, 210, 0.24);
+  border-radius: 16px;
+  background: rgba(8, 18, 50, 0.76);
+}
+
+.teacher-gender-tabs button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 11px;
+  color: #aebddd;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  background: transparent;
+}
+.teacher-gender-tabs button.active { color: #231600; background: linear-gradient(135deg, #ffe18b, #d99b2d); box-shadow: 0 8px 18px rgba(205, 137, 27, 0.22); }
+
+.teacher-ballot { width: min(94%, 1120px); margin: 0 auto; padding: 20px 20px 56px; border: 1px solid rgba(112, 140, 204, 0.26); border-radius: 24px; background: rgba(10, 19, 49, 0.76); box-shadow: 0 22px 50px rgba(0,0,0,0.28); }
+.teacher-ballot-heading { margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.teacher-ballot-heading div > span { color: #d5ae4b; font-size: 9px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; }
+.teacher-ballot-heading h2 { margin: 3px 0 0; color: #fff0bd; font-family: "Playfair Display", serif; font-size: 30px; }
+.teacher-ballot-heading > span { padding: 7px 10px; border-radius: 999px; color: #aebddd; font-size: 10px; font-weight: 800; background: rgba(255,255,255,0.06); }
+.teacher-title-section { padding: 20px; border: 1px solid rgba(112, 140, 204, 0.26); border-radius: 24px; background: rgba(10, 19, 49, 0.76); box-shadow: 0 22px 50px rgba(0,0,0,0.28); }
+.teacher-title-heading { margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.teacher-title-heading div > span { color: #d5ae4b; font-size: 9px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; }
+.teacher-title-heading h2 { margin: 3px 0 0; color: #fff0bd; font-family: "Playfair Display", serif; font-size: 30px; }
+.teacher-title-heading > span { padding: 7px 10px; border-radius: 999px; color: #aebddd; font-size: 10px; font-weight: 800; background: rgba(255,255,255,0.06); }
+.teacher-title-heading > span.complete { color: #bff8d6; background: rgba(47, 155, 101, 0.18); }
+.teacher-empty { color: #b8c5df; text-align: center; }
+
+.teacher-candidate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.teacher-candidate-card { position: relative; min-width: 0; padding: 12px; overflow: hidden; border: 1px solid rgba(113, 143, 210, 0.26); border-radius: 20px; background: linear-gradient(145deg, rgba(28,45,91,0.92), rgba(6,12,37,0.98)); box-shadow: 0 16px 35px rgba(0,0,0,0.3); }
+.teacher-candidate-image { position: relative; height: 300px; overflow: hidden; border-radius: 15px; background: #101a3c; }
+.teacher-candidate-image::after { content: ""; position: absolute; inset: auto 0 0; height: 28%; background: linear-gradient(transparent, rgba(2,6,24,0.7)); }
+.teacher-candidate-image img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center top; }
+.teacher-candidate-image span { position: absolute; right: 9px; bottom: 9px; z-index: 2; padding: 7px 10px; border-radius: 999px; color: #211400; font-size: 11px; font-weight: 900; background: linear-gradient(135deg, #ffe28e, #dc9c2b); }
+.teacher-candidate-card h3 { margin: 13px 0 10px; color: white; font-family: "Playfair Display", serif; font-size: 23px; text-align: center; }
+
+.teacher-candidate-stats { margin-bottom: 10px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 6px; }
+.teacher-candidate-stats div { min-width: 0; min-height: 54px; padding: 7px 5px; display: grid; place-content: center; text-align: center; border: 1px solid rgba(139,163,218,0.15); border-radius: 10px; background: rgba(6,15,43,0.72); }
+.teacher-candidate-stats span { color: #8fa3cc; font-size: 9px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.teacher-candidate-stats strong { overflow: hidden; color: #edf3ff; font-size: 12px; text-overflow: ellipsis; }
+
+.teacher-title-buttons { display: grid; gap: 7px; }
+.teacher-title-buttons button { width: 100%; min-height: 51px; border: 1px solid rgba(255,230,159,0.5); border-radius: 12px; color: #211400; font-size: 12px; font-weight: 900; letter-spacing: 0.05em; cursor: pointer; background: linear-gradient(135deg, #f2bf4b, #ce7e16); box-shadow: 0 9px 20px rgba(193,111,15,0.24); }
+.teacher-title-buttons button:active:not(:disabled) { transform: scale(0.98); }
+.teacher-title-buttons button:disabled { cursor: not-allowed; opacity: 0.62; }
+.teacher-title-buttons button.voted { color: #caffdf; border-color: rgba(90,224,151,0.45); background: linear-gradient(135deg, #174d3b, #0b2d24); }
+
+.teacher-candidate-card.celebrating { animation: teacher-card-cheer 0.8s ease both; }
+.teacher-cheer { position: absolute; inset: 35% 0 auto; z-index: 10; color: white; font-size: 34px; text-align: center; pointer-events: none; animation: teacher-cheer 2.2s ease-out both; }
+
+@keyframes teacher-spin { to { transform: rotate(360deg); } }
+@keyframes teacher-alert-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes teacher-card-cheer { 0% { transform: scale(0.96); } 55% { transform: scale(1.025); box-shadow: 0 0 38px rgba(255,202,80,0.32); } 100% { transform: scale(1); } }
+@keyframes teacher-cheer { 0% { opacity: 0; transform: translateY(30px) scale(0.6); } 25%, 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-130px) scale(1.35) rotate(8deg); } }
+
+@media (max-width: 720px) {
+  .teacher-vote-header { position: sticky; top: 0; z-index: 80; padding: 10px 12px; gap: 10px; }
+  .teacher-vote-header img { width: 52px; height: 52px; }
+  .teacher-vote-header span { font-size: 7px; }
+  .teacher-vote-header h1 { margin: 1px 0 3px; font-size: 23px; }
+  .teacher-vote-header p { font-size: 9px; }
+  .teacher-alert { top: 78px; }
+  .teacher-gender-tabs { position: sticky; top: 76px; z-index: 60; margin: 14px auto 18px; backdrop-filter: blur(12px); }
+  .teacher-ballot { width: calc(100% - 16px); padding: 12px 8px 28px; border-radius: 19px; }
+  .teacher-ballot-heading { padding-inline: 4px; }
+  .teacher-ballot-heading h2 { font-size: 25px; }
+  .teacher-title-section { padding: 12px 8px; border-radius: 19px; }
+  .teacher-title-heading { padding-inline: 4px; }
+  .teacher-title-heading h2 { font-size: 25px; }
+  .teacher-candidate-grid { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .teacher-candidate-card { padding: 9px; border-radius: 17px; }
+  .teacher-candidate-image { height: clamp(260px, 56vh, 345px); }
+  .teacher-candidate-stats span { font-size: 10px; }
+  .teacher-candidate-stats strong { font-size: 13px; }
+  .teacher-title-buttons button { min-height: 54px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teacher-loader, .teacher-alert, .teacher-candidate-card.celebrating, .teacher-cheer { animation: none; }
+}

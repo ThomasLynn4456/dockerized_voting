@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Gp3Application<Gp3>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.voting.Gp3.Gp3Application",
+            "projectName": "Gp3",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

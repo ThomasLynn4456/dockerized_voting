@@ -1,0 +1,188 @@
+.result-live-status {
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  margin: 16px auto 0;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(106, 231, 163, 0.3);
+  border-radius: 999px;
+  color: #dfffee;
+  font: 700 11px/1.3 Arial, sans-serif;
+  background: rgba(9, 46, 34, 0.66);
+}
+
+.result-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #65e5a1;
+  box-shadow: 0 0 0 0 rgba(101, 229, 161, 0.65);
+  animation: result-live-pulse 1.8s infinite;
+}
+
+.result-winner-card {
+  position: relative;
+  border-color: rgba(255, 216, 112, 0.62);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.42), 0 0 32px rgba(231, 168, 52, 0.13);
+  animation: result-winner-arrive 0.55s ease both;
+}
+
+.winner-countdown {
+  width: min(92%, 560px);
+  margin: 0 auto 28px;
+  padding: 24px 20px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 216, 112, 0.5);
+  border-radius: 24px;
+  color: #fff6d5;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(220, 161, 45, 0.2), transparent 42%),
+    linear-gradient(145deg, rgba(31, 43, 88, 0.96), rgba(7, 11, 34, 0.98));
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.4), 0 0 35px rgba(224, 166, 48, 0.1);
+}
+
+.winner-countdown::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.09) 48%, transparent 70%);
+  animation: countdown-shine 2.4s linear infinite;
+}
+
+.winner-countdown-kicker {
+  color: #e9c66f;
+  font: 800 10px/1.2 Arial, sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.winner-countdown strong {
+  display: grid;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  border: 2px solid rgba(255, 225, 142, 0.65);
+  border-radius: 50%;
+  color: #ffe18b;
+  font: 700 56px/1 "Cinzel", serif;
+  text-shadow: 0 0 22px rgba(255, 205, 79, 0.7);
+  background: rgba(225, 164, 45, 0.08);
+  box-shadow: inset 0 0 30px rgba(229, 166, 46, 0.13), 0 0 26px rgba(229, 166, 46, 0.12);
+  animation: countdown-tick 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.35) both;
+}
+
+.winner-countdown > span:last-child {
+  color: #c9d5ed;
+  font: 600 13px/1.4 Arial, sans-serif;
+}
+
+.result-winner-card.winner-revealed {
+  animation: winner-reveal 1s cubic-bezier(0.16, 0.8, 0.24, 1) both;
+}
+
+.winner-cheer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.winner-cheer span {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  font-size: 34px;
+  opacity: 0;
+  animation: winner-cheer-burst 2.2s ease-out both;
+}
+
+.winner-cheer span:nth-child(1) { --cheer-x: -150px; --cheer-y: -190px; animation-delay: 0.05s; }
+.winner-cheer span:nth-child(2) { --cheer-x: -75px; --cheer-y: -230px; animation-delay: 0.18s; }
+.winner-cheer span:nth-child(3) { --cheer-x: 0px; --cheer-y: -250px; animation-delay: 0.08s; }
+.winner-cheer span:nth-child(4) { --cheer-x: 85px; --cheer-y: -220px; animation-delay: 0.22s; }
+.winner-cheer span:nth-child(5) { --cheer-x: 155px; --cheer-y: -180px; animation-delay: 0.12s; }
+
+.result-winner-badge {
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  z-index: 5;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 238, 182, 0.7);
+  border-radius: 999px;
+  color: #261700;
+  font: 800 11px/1 Arial, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #ffe696, #d99b2d);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
+}
+
+@keyframes result-live-pulse {
+  70% { box-shadow: 0 0 0 7px rgba(101, 229, 161, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(101, 229, 161, 0); }
+}
+
+@keyframes result-winner-arrive {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes countdown-tick {
+  from { opacity: 0.25; transform: scale(0.68); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes countdown-shine {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(120%); }
+}
+
+@keyframes winner-reveal {
+  0% { opacity: 0; transform: scale(0.82) translateY(24px); filter: brightness(1.8); }
+  55% { transform: scale(1.035) translateY(-5px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: brightness(1); }
+}
+
+@keyframes winner-cheer-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35) rotate(0); }
+  18% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--cheer-x)), calc(-50% + var(--cheer-y))) scale(1.25) rotate(330deg); }
+}
+
+@media (max-width: 720px) {
+  .result-live-status {
+    border-radius: 16px;
+    font-size: 10px;
+  }
+
+  .result-winner-badge {
+    top: 20px;
+    left: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-live-dot,
+  .result-winner-card,
+  .winner-countdown::before,
+  .winner-countdown strong,
+  .winner-cheer span {
+    animation: none;
+  }
+}

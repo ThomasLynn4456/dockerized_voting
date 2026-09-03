@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voting Results - University Welcome 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Great+Vibes&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="result.css">
+
+</head>
+<body>
+<div class="app-container">
+
+<header class="header">
+  <div class="header-logo">
+    <img src="img/logo1.png" class="logo" alt="University logo">
+  </div>
+  <div class="header-title">
+    <h2>UNIVERSITY</h2>
+    <h2>WELCOME</h2>
+    <p>VOTING 2026</p>
+  </div>
+  <a class="header-back" href="#" onclick="history.back(); return false;" aria-label="Go back">
+    <i class="fa-solid fa-arrow-left"></i>
+  </a>
+</header>
+
+
+<main class="page-content">
+  <section class="page-heading">
+    <div class="small-script">Category Voting Board</div>
+    <h1>Voting Results</h1>
+    <p>King, Smart and Popular results for Boys and Girls.</p>
+  </section>
+
+  <section class="result-section">
+    <h2 class="result-section-title"><i class="fa-solid fa-user-tie"></i> Boys Results</h2>
+    <div class="category-results-grid">
+      <article class="result-panel">
+        <div class="result-panel-title"><i class="fa-solid fa-crown"></i> King</div>
+        <div id="boys-king-results" class="ranking-list"></div>
+      </article>
+      <article class="result-panel">
+        <div class="result-panel-title"><i class="fa-solid fa-brain"></i> Smart</div>
+        <div id="boys-smart-results" class="ranking-list"></div>
+      </article>
+      <article class="result-panel">
+        <div class="result-panel-title"><i class="fa-solid fa-star"></i> Popular</div>
+        <div id="boys-popular-results" class="ranking-list"></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="result-section">
+    <h2 class="result-section-title"><i class="fa-solid fa-user"></i> Girls Results</h2>
+    <div class="category-results-grid">
+      <article class="result-panel">
+        <div class="result-panel-title"><i class="fa-solid fa-crown"></i> Queen</div>
+        <div id="girls-king-results" class="ranking-list"></div>
+      </article>
+      <article class="result-panel">
+        <div class="result-panel-title"><i class="fa-solid fa-brain"></i> Style</div>
+        <div id="girls-smart-results" class="ranking-list"></div>
+      </article>
+      <article class="result-panel">
+        <div class="result-panel-title"><i class="fa-solid fa-star"></i> Popular</div>
+        <div id="girls-popular-results" class="ranking-list"></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="result-actions">
+    <button id="resetVotes" class="outline-btn">
+      <i class="fa-solid fa-rotate-left"></i> Reset All Category Votes
+    </button>
+  </section>
+</main>
+<nav class="navbar"><a href="home.html" class="nav-item">
+          <i class="fa-solid fa-house"></i><span>Home</span>
+        </a>
+<a href="boy.html" class="nav-item">
+          <i class="fa-solid fa-user"></i><span>Boys</span>
+        </a>
+<a href="girl.html" class="nav-item">
+          <i class="fa-solid fa-user"></i><span>Girls</span>
+        </a>
+<a href="result.html" class="nav-item active">
+          <i class="fa-solid fa-chart-simple"></i><span>Results</span>
+        </a>
+<a href="about.html" class="nav-item">
+          <i class="fa-solid fa-circle-info"></i><span>About</span>
+        </a></nav>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

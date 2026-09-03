@@ -1,0 +1,779 @@
+
+.welcome-screen {
+  position: relative;
+  isolation: isolate;
+
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  padding: 24px;
+
+  display: block;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  font-family: Georgia, serif;
+
+  background-color: #071b42;
+
+  scrollbar-width: thin;
+  scrollbar-color: #d4af37 #071b42;
+}
+
+
+
+.welcome-screen::-webkit-scrollbar {
+  width: 7px;
+}
+
+.welcome-screen::-webkit-scrollbar-track {
+  background: #071b42;
+}
+
+.welcome-screen::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background: linear-gradient(#ffd978, #9b771b);
+}
+
+
+.welcome-screen,
+.welcome-screen * {
+  box-sizing: border-box;
+}
+
+
+
+.welcome-screen::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  z-index: -3;
+
+  background-image: var(--welcome-background);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+
+  opacity: 0.18;
+
+  filter: blur(2px);
+
+  transform: scale(1.03);
+}
+
+
+
+.welcome-overlay {
+  position: absolute;
+  inset: 0;
+
+  z-index: -2;
+
+  background: rgba(3, 18, 48, 0.55);
+}
+
+
+
+.welcome-card {
+  position: relative;
+  z-index: 2;
+
+  width: min(90%, 700px);
+
+  
+  min-height: calc(100dvh - 48px);
+
+  margin: 0 auto;
+
+  padding: 48px 50px 45px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+
+  text-align: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  border-radius: 16px;
+
+  background: rgba(255, 255, 255, 0.06);
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+
+  backdrop-filter: blur(3px);
+}
+
+
+
+.welcome-corner {
+  position: absolute;
+
+  width: 50px;
+  height: 50px;
+
+  pointer-events: none;
+}
+
+.welcome-corner-top-left {
+  top: 20px;
+  left: 20px;
+
+  border-top: 2px solid #d4af37;
+  border-left: 2px solid #d4af37;
+}
+
+.welcome-corner-top-right {
+  top: 20px;
+  right: 20px;
+
+  border-top: 2px solid #d4af37;
+  border-right: 2px solid #d4af37;
+}
+
+.welcome-corner-bottom-left {
+  bottom: 20px;
+  left: 20px;
+
+  border-bottom: 2px solid #d4af37;
+  border-left: 2px solid #d4af37;
+}
+
+.welcome-corner-bottom-right {
+  right: 20px;
+  bottom: 20px;
+
+  border-right: 2px solid #d4af37;
+  border-bottom: 2px solid #d4af37;
+}
+
+
+.welcome-logo-wrapper {
+  width: 145px;
+  height: 145px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  animation: welcome-logo-float 3s ease-in-out infinite;
+}
+
+.welcome-logo {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  object-fit: contain;
+}
+
+@keyframes welcome-logo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+
+
+.welcome-university-name {
+  margin: 8px 0 0;
+
+  color: #d7b56d;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  letter-spacing: 4px;
+
+  line-height: 1.5;
+}
+
+
+
+.welcome-main-title {
+  margin: 15px 0 0;
+
+  color: #ffffff;
+
+  font-size: clamp(35px, 7vw, 50px);
+
+  line-height: 1.1;
+
+  font-weight: 700;
+}
+
+
+
+.welcome-subtitle {
+  margin: 0 0 12px;
+
+  color: #e8c25d;
+
+  font-size: clamp(25px, 6vw, 40px);
+
+  font-style: italic;
+
+  line-height: 1.15;
+
+  font-weight: 700;
+}
+
+
+
+.welcome-year {
+  margin: 0 0 15px;
+
+  color: #d9bf78;
+
+  letter-spacing: 3px;
+
+  font-size: 15px;
+}
+
+
+
+.welcome-tagline {
+  margin: 0 0 22px;
+
+  color: #ffffff;
+
+  opacity: 0.8;
+
+  font-size: 15px;
+}
+
+
+
+.welcome-form {
+  width: 100%;
+  max-width: 500px;
+
+  margin: 0 auto 24px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 14px;
+
+  text-align: left;
+}
+
+
+
+.welcome-form-group {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 6px;
+}
+
+
+
+.welcome-form-group label {
+  padding-left: 4px;
+
+  color: #e8c25d;
+
+  font-family: Georgia, serif;
+
+  font-size: 14px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.5px;
+}
+
+
+
+.welcome-form-group input {
+  width: 100%;
+
+  height: 46px;
+
+  padding: 0 16px;
+
+  border: 1px solid rgba(212, 175, 55, 0.55);
+
+  border-radius: 10px;
+
+  outline: none;
+
+  color: #ffffff;
+
+  background: rgba(3, 18, 48, 0.55);
+
+  font-family: Georgia, serif;
+
+  font-size: 15px;
+
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+
+
+.welcome-form-group input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+
+.welcome-form-group input:focus {
+  border-color: #ffd978;
+
+  background: rgba(3, 18, 48, 0.75);
+
+  box-shadow:
+    0 0 0 2px rgba(212, 175, 55, 0.12),
+    0 0 18px rgba(255, 215, 0, 0.18);
+}
+
+.telegram-connect-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.telegram-connect-row button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 204, 102, 0.7);
+  border-radius: 10px;
+  padding: 0 16px;
+  color: #fff6db;
+  background: rgba(110, 73, 20, 0.8);
+  font-family: Georgia, serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.telegram-connect-row button:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.telegram-connect-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+
+
+.welcome-vote-button {
+
+  position: center;
+  width: 230px;
+
+  min-height: 56px;
+
+  padding: 16px 40px;
+
+  display: inline-flex;
+
+  justify-content: center;
+  align-items: center;
+
+  border: 0;
+
+  border-radius: 50px;
+
+  color: #071b42;
+
+  text-decoration: none;
+
+  appearance: none;
+
+  font-family: Georgia, serif;
+
+  font-size: 20px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  background: linear-gradient(
+    45deg,
+    #e0b347,
+    #ffd978
+  );
+
+  box-shadow:
+    0 0 20px rgba(255, 215, 0, 0.45);
+
+  transition:
+    transform 0.4s,
+    box-shadow 0.4s,
+    filter 0.4s;
+}
+
+.welcome-vote-button:hover {
+  color: #071b42;
+
+  text-decoration: none;
+
+  transform: translateY(-4px);
+
+  filter: brightness(1.06);
+
+  box-shadow:
+    0 0 35px gold;
+}
+
+.welcome-vote-button:focus-visible {
+  outline: 3px solid #ffffff;
+
+  outline-offset: 4px;
+}
+
+
+.welcome-quote {
+  margin: 25px 0 0;
+
+  color: #dddddd;
+
+  font-size: 15px;
+
+  font-style: italic;
+}
+
+
+
+.welcome-particles {
+  position: absolute;
+
+  inset: 0;
+
+  z-index: -1;
+
+  overflow: hidden;
+
+  pointer-events: none;
+}
+
+.welcome-particle {
+  position: absolute;
+
+  bottom: -10px;
+
+  display: block;
+
+  border-radius: 50%;
+
+  background: gold;
+
+  box-shadow:
+    0 0 7px rgba(255, 215, 0, 0.7);
+
+  animation-name: welcome-particle-float;
+
+  animation-timing-function: linear;
+
+  animation-iteration-count: infinite;
+}
+
+@keyframes welcome-particle-float {
+  0% {
+    opacity: 0;
+
+    transform: translateY(0);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+
+    transform: translateY(-110vh);
+  }
+}
+
+
+@media (max-width: 768px) {
+  .welcome-screen {
+    padding: 12px;
+
+    overflow-y: auto;
+  }
+
+  .welcome-card {
+    width: 100%;
+
+    min-height: calc(100dvh - 24px);
+
+    margin: 0 auto;
+
+    padding: 32px 20px 35px;
+  }
+
+  .welcome-corner {
+    width: 38px;
+    height: 38px;
+  }
+
+  .welcome-corner-top-left {
+    top: 15px;
+    left: 15px;
+  }
+
+  .welcome-corner-top-right {
+    top: 15px;
+    right: 15px;
+  }
+
+  .welcome-corner-bottom-left {
+    bottom: 15px;
+    left: 15px;
+  }
+
+  .welcome-corner-bottom-right {
+    right: 15px;
+    bottom: 15px;
+  }
+
+  
+
+  .welcome-logo-wrapper {
+    width: 115px;
+    height: 115px;
+  }
+
+  .welcome-university-name {
+    margin-top: 7px;
+
+    font-size: 11px;
+
+    letter-spacing: 2px;
+  }
+
+  .welcome-main-title {
+    margin-top: 12px;
+
+    font-size: clamp(36px, 12vw, 48px);
+  }
+
+  .welcome-subtitle {
+    font-size: clamp(30px, 10vw, 40px);
+  }
+
+  .welcome-year {
+    margin-bottom: 14px;
+
+    font-size: 13px;
+  }
+
+  .welcome-tagline {
+    margin-bottom: 20px;
+
+    font-size: 14px;
+  }
+
+  /* Form */
+
+  .welcome-form {
+    max-width: 100%;
+
+    gap: 12px;
+
+    margin-bottom: 22px;
+  }
+
+  .welcome-form-group {
+    gap: 5px;
+  }
+
+  .welcome-form-group label {
+    font-size: 13px;
+  }
+
+  .welcome-form-group input {
+    height: 45px;
+
+    padding: 0 14px;
+
+    font-size: 14px;
+  }
+
+  /* Vote button */
+
+  .welcome-vote-button {
+    width: 100%;
+
+    min-height: 52px;
+
+    padding: 14px 20px;
+
+    font-size: 18px;
+  }
+
+  .welcome-quote {
+    margin-top: 22px;
+
+    font-size: 13px;
+  }
+}
+
+
+@media (max-width: 380px) {
+  .welcome-screen {
+    padding: 8px;
+  }
+
+  .welcome-card {
+    padding: 28px 15px 30px;
+  }
+
+  .welcome-logo-wrapper {
+    width: 100px;
+    height: 100px;
+  }
+
+  .welcome-university-name {
+    font-size: 9px;
+
+    letter-spacing: 1.5px;
+  }
+
+  .welcome-main-title {
+    font-size: 34px;
+  }
+
+  .welcome-subtitle {
+    font-size: 28px;
+  }
+
+  .welcome-year {
+    font-size: 12px;
+
+    letter-spacing: 2px;
+  }
+
+  .welcome-tagline {
+    font-size: 13px;
+  }
+
+  .welcome-form-group input {
+    height: 43px;
+
+    font-size: 13px;
+  }
+
+  .welcome-vote-button {
+    min-height: 50px;
+
+    font-size: 17px;
+  }
+
+  .welcome-quote {
+    margin-top: 20px;
+
+    font-size: 12px;
+  }
+}
+
+
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-logo-wrapper,
+  .welcome-particle {
+    animation: none;
+  }
+
+  .welcome-vote-button {
+    transition: none;
+  }
+
+  .welcome-form-group input {
+    transition: none;
+  }
+}
+
+
+
+/* Allow the whole welcome page to scroll */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+/* Main welcome page */
+.welcome-screen {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+
+  -webkit-overflow-scrolling: touch;
+}
+
+/* IMPORTANT:
+   Don't force the card to be exactly viewport height.
+   Let the form make the card taller when necessary.
+*/
+.welcome-card {
+ 
+  height: auto !important;
+
+  margin: 0 auto;
+
+  overflow: visible !important;
+}
+
+/* Make sure the form itself isn't clipped */
+.welcome-form {
+  overflow: visible !important;
+}
+
+/* Mobile scrolling */
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .welcome-screen {
+    height: 100vh;
+    height: 100dvh;
+
+    min-height: 100vh;
+    min-height: 100dvh;
+
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .welcome-card {
+    min-height: auto !important;
+    height: auto !important;
+
+    margin-bottom: 20px;
+  }
+}
+
