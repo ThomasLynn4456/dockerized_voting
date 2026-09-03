@@ -12,6 +12,7 @@ function Home() {
     const navigate = useNavigate();
     const [student, setStudent] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showLogoutWarning, setShowLogoutWarning] = useState(false);
 
     useEffect(() => {
         async function checkSession() {
@@ -52,50 +53,64 @@ function Home() {
 
             <main className="page-content home-page">
                 {student && (
-                    <div style={{
-                        margin: "12px 16px 0",
-                        padding: "10px 16px",
-                        background: "rgba(18, 53, 101, 0.75)",
-                        border: "1px solid #D4AF37",
-                        borderRadius: "10px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        color: "#ffe6a3",
-                        flexWrap: "wrap",
-                        gap: "8px"
-                    }}>
-                        <div>
-                            <strong>Student:</strong> {student.username} ({student.major})
+                    <section className={`student-status-card ${student.hasVoted ? "is-complete" : "is-eligible"}`}>
+                        <div className="student-status-identity">
+                            <span className="student-avatar" aria-hidden="true">
+                                {String(student.username || "S").charAt(0).toUpperCase()}
+                            </span>
+                            <div className="student-status-copy">
+                                <span className="student-status-label">Signed in as</span>
+                                <strong>{student.username}</strong>
+                                <small>{student.major}</small>
+                            </div>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <span style={{
-                                padding: "4px 10px",
-                                borderRadius: "20px",
-                                fontSize: "13px",
-                                background: student.hasVoted ? "rgba(46, 204, 113, 0.2)" : "rgba(241, 196, 15, 0.2)",
-                                color: student.hasVoted ? "#2ecc71" : "#f1c40f",
-                                border: student.hasVoted ? "1px solid #2ecc71" : "1px solid #f1c40f"
-                            }}>
-                                {student.hasVoted ? "Already Voted ✅" : "Eligible to Vote 🗳️"}
+                        <div className="student-status-actions">
+                            <span className="eligibility-badge">
+                                <i className={student.hasVoted ? "fa-solid fa-circle-check" : "fa-solid fa-check"} aria-hidden="true" />
+                                <span>{student.hasVoted ? "Vote submitted" : "Eligible to vote"}</span>
                             </span>
                             <button
                                 type="button"
-                                onClick={handleLogout}
-                                style={{
-                                    padding: "4px 12px",
-                                    borderRadius: "6px",
-                                    background: "rgba(212, 175, 55, 0.2)",
-                                    border: "1px solid #D4AF37",
-                                    color: "#ffe6a3",
-                                    cursor: "pointer",
-                                    fontSize: "12px",
-                                    fontWeight: "bold"
-                                }}
+                                onClick={() => setShowLogoutWarning(true)}
+                                className="student-logout-button"
                             >
+                                <i className="fa-solid fa-arrow-right-from-bracket" aria-hidden="true" />
                                 Logout
                             </button>
                         </div>
+                    </section>
+                )}
+
+                {showLogoutWarning && (
+                    <div className="logout-warning-backdrop" role="presentation" onMouseDown={() => setShowLogoutWarning(false)}>
+                        <section
+                            className="logout-warning-dialog"
+                            role="alertdialog"
+                            aria-modal="true"
+                            aria-labelledby="logout-warning-title"
+                            aria-describedby="logout-warning-description"
+                            onMouseDown={(event) => event.stopPropagation()}
+                        >
+                            <span className="logout-warning-icon" aria-hidden="true">
+                                <i className="fa-solid fa-triangle-exclamation" />
+                            </span>
+                            <div>
+                                <span className="logout-warning-label">Session warning</span>
+                                <h2 id="logout-warning-title">Are you sure you want to log out?</h2>
+                                <p id="logout-warning-description">
+                                    You will need to verify your account again before returning to the voting page.
+                                </p>
+                            </div>
+                            <div className="logout-warning-actions">
+                                <button type="button" className="logout-cancel-button" onClick={() => setShowLogoutWarning(false)}>
+                                    Stay signed in
+                                </button>
+                                <button type="button" className="logout-confirm-button" onClick={handleLogout}>
+                                    <i className="fa-solid fa-arrow-right-from-bracket" aria-hidden="true" />
+                                    Log out
+                                </button>
+                            </div>
+                        </section>
                     </div>
                 )}
 

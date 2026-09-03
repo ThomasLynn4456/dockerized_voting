@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import RequireAdmin from "./components/RequireAdmin";
@@ -12,6 +12,7 @@ import Girl from "./pages/Girl";
 import About from "./pages/About";
 import Result from "./pages/Result";
 import TeacherVotePage from "./pages/TeacherVotePage";
+import "./Responsive.css";
 
 function AppContent() {
     const location = useLocation();
@@ -45,6 +46,9 @@ function AppContent() {
                 {/* Other pages */}
                 <Route path="/dashboard" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
                 <Route path="/teacher-vote" element={<TeacherVotePage />} />
+
+                {/* Fallback route */}
+                <Route path="*" element={<Navigate to="/welcome" replace />} />
 
             </Routes>
 

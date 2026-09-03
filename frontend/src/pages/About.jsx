@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import logo from "./img/logo1.png";
 import "./About.css";
 
@@ -72,8 +71,6 @@ function About() {
           <p>Bring your favorite candidates into the spotlight at Freshers' Welcome.</p>
         </section>
       </main>
-
-      <Navbar />
     </div>
   );
 }

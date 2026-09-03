@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getVoteRatio } from "../utils/voteStore";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import "./Result.css";
 
 import logo from "./img/logo1.png";
@@ -302,8 +301,6 @@ export default function Result() {
           </section>
         )}
       </main>
-
-      <Navbar />
     </div>
   );
 }

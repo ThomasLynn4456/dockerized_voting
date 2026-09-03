@@ -61,7 +61,7 @@ public class TeacherVoteTokenService {
 
     public Instant getExpiry(String token) {
         return teacherVoteTokenRepository.findByToken(token)
-                .map(TeacherVoteToken::getExpiresAt)
+                .map(record -> record.getExpiresAt())
                 .orElse(Instant.now());
     }
 

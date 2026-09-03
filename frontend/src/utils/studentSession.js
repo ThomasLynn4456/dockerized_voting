@@ -5,6 +5,10 @@ export async function fetchCurrentStudent() {
     const response = await fetch("/api/voters/me", { credentials: "include" });
     if (response.ok) {
       const data = await response.json();
+      if (data.authenticated === false) {
+        localStorage.removeItem(STUDENT_STORAGE_KEY);
+        return null;
+      }
       localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(data));
       return data;
     }

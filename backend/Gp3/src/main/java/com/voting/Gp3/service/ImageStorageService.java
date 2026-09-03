@@ -18,7 +18,30 @@ public class ImageStorageService {
     @Autowired
     public ImageStorageService(
             @Value("${app.candidate-images.directory:../../candidates_images}") String imageStorageDirectory) {
-        this(Path.of(imageStorageDirectory));
+        this(findCandidateImagesDirectory(imageStorageDirectory));
+    }
+
+    private static Path findCandidateImagesDirectory(String configured) {
+        Path configuredPath = Path.of(configured);
+        if (configuredPath.isAbsolute()) {
+            return configuredPath;
+        }
+
+        // Try configured relative path, or candidates_images in current dir, or ../candidates_images
+        Path[] candidates = new Path[] {
+            configuredPath,
+            Path.of("candidates_images"),
+            Path.of("../candidates_images"),
+            Path.of("../../candidates_images"),
+            Path.of("backend/Gp3/candidates_images")
+        };
+
+        for (Path p : candidates) {
+            if (Files.exists(p) && Files.isDirectory(p)) {
+                return p;
+            }
+        }
+        return configuredPath;
     }
 
     public ImageStorageService(Path imageStorageDirectory) {

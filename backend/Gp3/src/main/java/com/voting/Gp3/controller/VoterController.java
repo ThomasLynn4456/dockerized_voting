@@ -8,12 +8,12 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.voting.Gp3.Voter;
 import com.voting.Gp3.dto.VoterRequest;
@@ -53,7 +53,7 @@ public VoterController(
 
         if (request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()
                 || request.getTelegramChatId() == null || request.getTelegramChatId().isBlank()) {
-            return ResponseEntity.badRequest().body("Phone number and Telegram chat ID are required");
+            return ResponseEntity.badRequest().body(Map.of("message", "Phone number and Telegram chat ID are required."));
         }
 
         String phone = request.getPhoneNumber().trim();
@@ -69,7 +69,7 @@ public VoterController(
         if (voter == null) {
             if (request.getUsername() == null || request.getUsername().isBlank()
                     || request.getMajor() == null || request.getMajor().isBlank()) {
-                return ResponseEntity.badRequest().body("Username, major, phone number, and Telegram chat ID are required");
+                return ResponseEntity.badRequest().body(Map.of("message", "Username, major, phone number, and Telegram chat ID are required."));
             }
             voter = new Voter();
             voter.setPhoneNumber(phone);
@@ -122,14 +122,14 @@ public VoterController(
             HttpServletRequest httpRequest,
             HttpSession session) {
         if (request.getPhoneNumber() == null || request.getOtp() == null || !request.getOtp().matches("\\d{6}")) {
-            return ResponseEntity.badRequest().body("Phone number and a six-digit OTP are required");
+            return ResponseEntity.badRequest().body(Map.of("message", "Phone number and a six-digit OTP are required."));
         }
 
         Voter voter = voterRepository.findByPhoneNumber(request.getPhoneNumber().trim()).orElse(null);
         if (voter == null || voter.getOtpHash() == null || voter.getOtpExpiresAt() == null
                 || !voter.getOtpExpiresAt().isAfter(Instant.now())
                 || !passwordEncoder.matches(request.getOtp(), voter.getOtpHash())) {
-            return ResponseEntity.badRequest().body("Invalid or expired OTP");
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP."));
         }
 
         voter.setVerified(true);
@@ -146,13 +146,15 @@ public VoterController(
     public ResponseEntity<?> getSessionVoter(HttpSession session) {
         Object studentId = session.getAttribute("verifiedStudentId");
         if (studentId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not authenticated"));
+            return ResponseEntity.ok(Map.of("authenticated", false));
         }
         Voter voter = voterRepository.findById((Long) studentId).orElse(null);
         if (voter == null || !voter.isVerified()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not authenticated"));
+            session.removeAttribute("verifiedStudentId");
+            return ResponseEntity.ok(Map.of("authenticated", false));
         }
         return ResponseEntity.ok(Map.of(
+            "authenticated", true,
             "id", voter.getId(),
             "username", voter.getUsername(),
             "major", voter.getMajor(),

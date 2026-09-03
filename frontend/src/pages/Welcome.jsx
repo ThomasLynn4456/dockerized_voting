@@ -6,6 +6,27 @@ import "./Welcome.css";
 import logo from "./img/logo.png";
 import backgroundImage from "./img/images.jpg";
 
+const WELCOME_DRAFT_KEY = "voting_welcome_draft";
+const TELEGRAM_LINK_PENDING_KEY = "voting_telegram_link_pending";
+const EMPTY_FORM = { username: "", major: "", phoneNumber: "", telegramChatId: "" };
+
+function loadWelcomeDraft() {
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(WELCOME_DRAFT_KEY));
+    return saved && typeof saved === "object" ? { ...EMPTY_FORM, ...saved } : EMPTY_FORM;
+  } catch {
+    return EMPTY_FORM;
+  }
+}
+
+function loadTelegramLinkPending() {
+  try {
+    return window.sessionStorage.getItem(TELEGRAM_LINK_PENDING_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 const particles = Array.from({ length: 70 }, (_, index) => ({
   id: index,
   left: `${(index * 37) % 100}%`,
@@ -15,15 +36,53 @@ const particles = Array.from({ length: 70 }, (_, index) => ({
   size: `${3 + ((index * 11) % 4)}px`,
 }));
 
+async function readJsonResponse(response) {
+  const body = await response.text();
+  if (!body) return null;
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    // Spring and reverse proxies can return useful plain-text error bodies.
+    return body;
+  }
+}
+
+function responseMessage(data, fallback) {
+  if (typeof data === "string" && data.trim()) return data;
+  if (data && typeof data.message === "string" && data.message.trim()) return data.message;
+  return fallback;
+}
+
 function Welcome() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ username: "", major: "", phoneNumber: "", telegramChatId: "" });
+  const [formData, setFormData] = useState(loadWelcomeDraft);
   const [otp, setOtp] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [telegramLink, setTelegramLink] = useState("");
-  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramLink, setTelegramLink] = useState(() => loadTelegramLinkPending() ? "launched" : "");
+  const [telegramConnected, setTelegramConnected] = useState(() => Boolean(loadWelcomeDraft().telegramChatId));
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(WELCOME_DRAFT_KEY, JSON.stringify(formData));
+    } catch {
+      // Safari can disable storage in some private browsing configurations.
+    }
+  }, [formData]);
+
+  useEffect(() => {
+    try {
+      if (telegramLink && !telegramConnected) {
+        window.sessionStorage.setItem(TELEGRAM_LINK_PENDING_KEY, "true");
+      } else {
+        window.sessionStorage.removeItem(TELEGRAM_LINK_PENDING_KEY);
+      }
+    } catch {
+      // Keep the in-memory flow working when storage is unavailable.
+    }
+  }, [telegramLink, telegramConnected]);
 
   useEffect(() => {
     async function checkExistingSession() {
@@ -38,13 +97,29 @@ function Welcome() {
   useEffect(() => {
     if (!telegramLink || telegramConnected) return undefined;
 
+    let consecutiveErrors = 0;
     const timer = window.setInterval(async () => {
-      const statusResponse = await fetch("/api/telegram/link/status", { credentials: "include" });
-      const status = await statusResponse.json();
-      if (status.linked) {
-        setTelegramConnected(true);
-        setFormData((current) => ({ ...current, telegramChatId: status.chatId }));
-        window.clearInterval(timer);
+      try {
+        const statusResponse = await fetch("/api/telegram/link/status", { credentials: "include" });
+        const status = await readJsonResponse(statusResponse);
+        if (statusResponse.ok && status?.linked) {
+          setTelegramConnected(true);
+          setFormData((current) => ({ ...current, telegramChatId: String(status.chatId || "") }));
+          setMessage("Telegram account connected successfully!");
+          window.clearInterval(timer);
+        } else if (!statusResponse.ok) {
+          consecutiveErrors += 1;
+          if (consecutiveErrors > 15) {
+            window.clearInterval(timer);
+            setMessage("Connection check timed out. Please click Connect Telegram again.");
+          }
+        }
+      } catch {
+        consecutiveErrors += 1;
+        if (consecutiveErrors > 15) {
+          window.clearInterval(timer);
+          setMessage("Unable to reach the backend. Please try connecting again.");
+        }
       }
     }, 2000);
 
@@ -53,57 +128,60 @@ function Welcome() {
 
   const connectTelegram = async () => {
     setMessage("");
-    const telegramWindow = window.open("about:blank", "_blank");
     try {
       const response = await fetch("/api/telegram/link", { credentials: "include" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Telegram is unavailable");
-      setTelegramLink(data.url);
-      if (telegramWindow) {
-        telegramWindow.location.href = data.url;
-      } else {
-        setMessage("Please allow pop-ups, then click Connect Telegram again");
+      const data = await readJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(responseMessage(data, "Telegram bot is not available. Please try again later."));
       }
-    } catch (error) {
-      telegramWindow?.close();
-      setMessage(error.message || "Unable to connect to Telegram");
+      if (data?.url) {
+        setTelegramLink("launched");
+        const opened = window.open(data.url, "_blank");
+        if (!opened) {
+          window.location.href = data.url;
+        }
+      }
+    } catch (err) {
+      const telegramWindow = window.open("/api/telegram/launch", "_blank");
+      if (telegramWindow) {
+        setTelegramLink("launched");
+      } else {
+        setTelegramLink("");
+        setMessage(err.message || "Please allow pop-ups, then click Connect Telegram again.");
+      }
     }
   };
 
+  const cleanMyanmarLocalDigits = (raw) => {
+    let digits = (raw || "").replace(/\D/g, "");
+    if (digits.startsWith("95")) {
+      digits = digits.slice(2);
+    }
+    while (digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    return digits;
+  };
+
   const normalizePhoneNumber = (value) => {
-    const digits = (value || "").replace(/\D/g, "");
-
-    if (!digits) return "+95";
-
-    const localDigits = digits.startsWith("95")
-      ? digits.slice(2)
-      : digits.startsWith("9")
-        ? digits.slice(1)
-        : digits.startsWith("0")
-          ? digits.slice(1)
-          : digits;
-
-    return `+95${localDigits}`.slice(0, 13);
+    const localDigits = cleanMyanmarLocalDigits(value);
+    if (!localDigits) return "+95";
+    return `+95${localDigits}`.slice(0, 14);
   };
 
   const updateField = (event) => {
     const { name, value } = event.target;
 
     if (name === "phoneNumber") {
-      const digits = value.replace(/\D/g, "");
-      const localDigits = digits.startsWith("95")
-        ? digits.slice(2)
-        : digits.startsWith("9")
-          ? digits.slice(1)
-          : digits.startsWith("0")
-            ? digits.slice(1)
-            : digits;
-
-      setFormData({ ...formData, [name]: `+95 ${localDigits}`.slice(0, 14) });
+      const localDigits = cleanMyanmarLocalDigits(value);
+      setFormData((current) => ({
+        ...current,
+        phoneNumber: localDigits ? `+95 ${localDigits}`.slice(0, 16) : "+95 ",
+      }));
       return;
     }
 
-    setFormData({ ...formData, [name]: value });
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
   const handleSubmit = async (event) => {
@@ -113,7 +191,12 @@ function Welcome() {
 
     const phoneNumber = normalizePhoneNumber(formData.phoneNumber);
     const telegramChatId = String(formData.telegramChatId || "").trim();
-    if (phoneNumber === "+95" || !/^\+95\d{9,10}$/.test(phoneNumber)) {
+    if (!formData.username.trim() || !formData.major.trim()) {
+      setMessage("Username and major are required");
+      setSubmitting(false);
+      return;
+    }
+    if (phoneNumber === "+95" || !/^\+95\d{7,11}$/.test(phoneNumber)) {
       setMessage("Please enter a valid Myanmar mobile number starting with +95");
       setSubmitting(false);
       return;
@@ -123,34 +206,54 @@ function Welcome() {
       setSubmitting(false);
       return;
     }
+    if (otpRequested && !/^\d{6}$/.test(otp.trim())) {
+      setMessage("Please enter the six-digit OTP");
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const endpoint = otpRequested ? "/api/voters/verify-otp" : "/api/voters/request-otp";
       const body = otpRequested
-        ? { phoneNumber, otp }
-        : { ...formData, phoneNumber, telegramChatId };
+        ? { phoneNumber, otp: otp.trim() }
+        : {
+            ...formData,
+            username: formData.username.trim(),
+            major: formData.major.trim(),
+            phoneNumber,
+            telegramChatId,
+          };
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data || "Request failed");
+      const data = await readJsonResponse(response);
+      if (!response.ok) {
+        const operation = otpRequested ? "OTP verification" : "OTP request";
+        throw new Error(responseMessage(data, `${operation} failed (${response.status})`));
+      }
 
       if (otpRequested) {
+        try {
+          window.sessionStorage.removeItem(WELCOME_DRAFT_KEY);
+          window.sessionStorage.removeItem(TELEGRAM_LINK_PENDING_KEY);
+        } catch {
+          // The completed login does not depend on draft cleanup.
+        }
         saveStudentSession({
           id: data.voterId,
-          username: data.username || formData.username,
-          major: formData.major,
+          username: data.username || formData.username.trim(),
+          major: formData.major.trim(),
           phoneNumber: phoneNumber,
           verified: true,
-          hasVoted: false
+          hasVoted: false,
         });
         navigate("/home");
       } else {
         setOtpRequested(true);
-        setMessage(data.message);
+        setMessage(data?.message || "OTP sent successfully to your Telegram account.");
       }
     } catch (error) {
       setMessage(error.message || "Request failed");
@@ -230,6 +333,7 @@ function Welcome() {
           id="welcome-voting-form"
           className="welcome-form"
           onSubmit={handleSubmit}
+          noValidate
         >
 
           {/* Username */}
@@ -287,19 +391,24 @@ function Welcome() {
           </div>
 
           <div className="welcome-form-group">
-            <label>Telegram</label>
+            <label>Telegram Verification</label>
             <div className="telegram-connect-row">
               <button type="button" onClick={connectTelegram} disabled={telegramConnected}>
-                {telegramConnected ? "Telegram connected" : "Connect Telegram"}
+                {telegramConnected ? "✓ Telegram Connected" : telegramLink ? "Connecting... (Open Bot)" : "Connect Telegram"}
               </button>
               <input
                 type="text"
-                value={formData.telegramChatId}
-                placeholder="Chat ID appears after connecting"
+                value={formData.telegramChatId || ""}
+                placeholder="Chat ID"
                 readOnly
-                aria-label="Telegram chat ID"
+                aria-label="Chat ID"
               />
             </div>
+            {!telegramConnected && (
+              <p style={{ fontSize: "11px", color: "#e0d0a0", marginTop: "4px", marginInline: "2px" }}>
+                Click &quot;Connect Telegram&quot; and press <strong>START</strong> in the bot.
+              </p>
+            )}
           </div>
 
           {otpRequested && (
@@ -310,7 +419,6 @@ function Welcome() {
                 name="otp"
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9]{6}"
                 maxLength="6"
                 placeholder="Enter the 6-digit OTP"
                 value={otp}

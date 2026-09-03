@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import { fetchCurrentStudent, saveStudentSession } from "../utils/studentSession";
 
 import "./Boy.css";
@@ -336,9 +335,6 @@ function Boy() {
           )}
         </section>
       </main>
-
-      <Navbar />
-    
     </div>
   );
 }

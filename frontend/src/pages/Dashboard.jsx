@@ -36,6 +36,7 @@ function Dashboard() {
     const [isGeneratingTeacherToken, setIsGeneratingTeacherToken] = useState(false);
     const [backendVoteTotals, setBackendVoteTotals] = useState({ student: 0, teacher: 0, total: 0 });
     const [resultLeaders, setResultLeaders] = useState([]);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const loadCandidates = async () => {
         try {
@@ -153,6 +154,11 @@ function Dashboard() {
     };
 
     const handleDeleteTitle = async (title) => {
+        const confirmed = window.confirm(`Delete the “${title.name}” title? This may also remove its voting data.`);
+        if (!confirmed) {
+            return;
+        }
+
         try {
             const response = await fetch(`${TITLES_API_URL}/${title.id}`, { method: "DELETE" });
             if (!response.ok) throw new Error("Unable to delete title.");
@@ -613,6 +619,22 @@ function Dashboard() {
         };
     });
 
+    const refreshDashboard = async () => {
+        setIsRefreshing(true);
+        setError("");
+        try {
+            await Promise.all([
+                loadCandidates(),
+                loadTitles(),
+                loadTeacherTokens(),
+                loadVoteSummary(),
+                loadPublishedResults(),
+            ]);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     return (
         <div className="dashboard-page">
             <div className="dashboard-header">
@@ -621,14 +643,28 @@ function Dashboard() {
                     <h1>Election Control Center</h1>
                     <p className="dashboard-subtitle">Manage candidates, voting weights, teacher access, and published winners from one workspace.</p>
                 </div>
-                <div className="dashboard-header-status">
-                    <span className="live-dot" aria-hidden="true" />
-                    <div>
-                        <small>System status</small>
-                        <strong>Voting is live</strong>
+                <div className="dashboard-header-tools">
+                    <div className="dashboard-header-status">
+                        <span className="live-dot" aria-hidden="true" />
+                        <div>
+                            <small>System status</small>
+                            <strong>Voting is live</strong>
+                        </div>
                     </div>
+                    <button type="button" className="dashboard-refresh-button" onClick={refreshDashboard} disabled={isRefreshing}>
+                        <i className={`fa-solid fa-rotate ${isRefreshing ? "is-spinning" : ""}`} aria-hidden="true" />
+                        {isRefreshing ? "Refreshing" : "Refresh data"}
+                    </button>
                 </div>
             </div>
+
+            {(error || successMessage) && (
+                <div className={`dashboard-notice ${error ? "error" : "success"}`} role={error ? "alert" : "status"}>
+                    <i className={`fa-solid ${error ? "fa-triangle-exclamation" : "fa-circle-check"}`} aria-hidden="true" />
+                    <span>{error || successMessage}</span>
+                    <button type="button" onClick={() => { setError(""); setSuccessMessage(""); }} aria-label="Dismiss notification">×</button>
+                </div>
+            )}
 
             <div className="dashboard-overview-grid">
                 <div className="overview-card"><span>Total votes</span><strong>{studentVotes + teacherVotes}</strong><small>Across all voters</small></div>
@@ -657,6 +693,11 @@ function Dashboard() {
                             </tr>
                         </thead>
                         <tbody>
+                            {titleLeaderRows.length === 0 && (
+                                <tr>
+                                    <td colSpan="4" className="leaderboard-empty">Add an election title to start tracking leaders.</td>
+                                </tr>
+                            )}
                             {titleLeaderRows.map((row) => (
                                 <tr key={row.title}>
                                     <td><span className="title-table-name">{row.title}</span></td>
@@ -869,7 +910,7 @@ function Dashboard() {
 
                         <label>
                             Name
-                            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Enter candidate name" />
+                            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Enter candidate name" required />
                         </label>
 
                         <label>
@@ -882,17 +923,17 @@ function Dashboard() {
 
                         <label>
                             Age
-                            <input type="number" name="age" value={formData.age} onChange={handleChange} placeholder="Enter Age" min="18" max="30" />
+                            <input type="number" name="age" value={formData.age} onChange={handleChange} placeholder="Enter Age" min="18" max="30" required />
                         </label>
 
                         <label>
                             Major
-                            <input type="text" name="major" value={formData.major} onChange={handleChange} placeholder="Enter Major" />
+                            <input type="text" name="major" value={formData.major} onChange={handleChange} placeholder="Enter Major" required />
                         </label>
 
                         <label>
                             Talent
-                            <input type="text" name="talent" value={formData.talent} onChange={handleChange} placeholder="Enter Talent" />
+                            <input type="text" name="talent" value={formData.talent} onChange={handleChange} placeholder="Enter Talent" required />
                         </label>
                     </div>
 
@@ -928,8 +969,6 @@ function Dashboard() {
                         )}
                     </div>
 
-                    {error && <p className="dashboard-error">{error}</p>}
-                    {successMessage && <p className="dashboard-success">{successMessage}</p>}
                 </form>
 
                 <div className="sections-panel">

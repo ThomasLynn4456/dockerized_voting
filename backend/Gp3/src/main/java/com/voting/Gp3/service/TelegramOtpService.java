@@ -24,20 +24,24 @@ public class TelegramOtpService {
     private final RestClient restClient;
     private final String botToken;
     private final String otpMessageTemplate;
+    private final String votingPageUrl;
     private final Map<String, String> linkedChats = new ConcurrentHashMap<>();
     private final Map<String, Instant> linkExpiry = new ConcurrentHashMap<>();
     private final AtomicLong updateOffset = new AtomicLong(0);
+    private volatile String cachedBotUsername = null;
 
     public TelegramOtpService(
             RestClient.Builder builder,
             @Value("${telegram.bot-token:}") String botToken,
             @Value("${telegram.api-url:https://api.telegram.org}") String apiUrl,
-            @Value("${telegram.otp-message-template:Your voting verification code is: %s. This code expires in 5 minutes.}") String otpMessageTemplate) {
+            @Value("${telegram.otp-message-template:Your voting verification code is: %s. This code expires in 5 minutes.}") String otpMessageTemplate,
+            @Value("${app.voting-page-url:http://localhost:3000/welcome}") String votingPageUrl) {
         this.restClient = builder
                 .baseUrl(apiUrl)
                 .build();
         this.botToken = botToken;
         this.otpMessageTemplate = otpMessageTemplate;
+        this.votingPageUrl = votingPageUrl;
     }
 
     public boolean isConfigured() {
@@ -51,6 +55,14 @@ public class TelegramOtpService {
     }
 
     public String createLinkUrl(String token) {
+        if (!isConfigured()) {
+            throw new IllegalStateException("Telegram bot is not configured");
+        }
+
+        if (cachedBotUsername != null && !cachedBotUsername.isBlank()) {
+            return "https://t.me/" + cachedBotUsername + "?start=" + token;
+        }
+
         try {
             Map<String, Object> response = restClient.get()
                     .uri("/bot{token}/getMe", botToken)
@@ -58,7 +70,9 @@ public class TelegramOtpService {
                     .body(new ParameterizedTypeReference<>() {});
             Object result = response == null ? null : response.get("result");
             if (result instanceof Map<?, ?> bot && bot.get("username") != null) {
-                return "https://t.me/" + bot.get("username") + "?start=" + token;
+                String username = String.valueOf(bot.get("username"));
+                this.cachedBotUsername = username;
+                return "https://t.me/" + username + "?start=" + token;
             }
         } catch (RestClientException ex) {
             log.warn("Unable to get Telegram bot username: {}", ex.getMessage());
@@ -112,9 +126,14 @@ public class TelegramOtpService {
 
     private void linkStartCommand(Map<?, ?> update) {
         Object messageObject = update.get("message");
-        if (!(messageObject instanceof Map<?, ?> message)) {
-            return;
+        if (!(messageObject instanceof Map<?, ?>)) {
+            messageObject = update.get("edited_message");
+            if (!(messageObject instanceof Map<?, ?>)) {
+                return;
+            }
         }
+
+        Map<?, ?> message = (Map<?, ?>) messageObject;
         Object chatObject = message.get("chat");
         if (!(chatObject instanceof Map<?, ?> chat) || chat.get("id") == null) {
             return;
@@ -124,17 +143,30 @@ public class TelegramOtpService {
         Object textObject = message.get("text");
         String text = textObject instanceof String s ? s.trim() : "";
 
-        if (text.startsWith("/start ")) {
-            String token = text.substring(7).trim();
-            if (linkExpiry.containsKey(token)) {
+        log.info("Telegram update received from chatId {}: text='{}'", chatId, text);
+
+        if (text.startsWith("/start")) {
+            String token = text.length() > 6 ? text.substring(6).trim() : "";
+            if (!token.isEmpty() && linkExpiry.containsKey(token)) {
                 linkedChats.put(token, chatId);
-                log.info("Linked Telegram chatId {} for token {}", chatId, token);
-                return;
+                log.info("Successfully linked Telegram chatId {} for token {}", chatId, token);
+                try {
+                    restClient.post()
+                            .uri("/bot{token}/sendMessage", botToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(Map.of(
+                                    "chat_id", chatId,
+                                    "text", "✅ Your Telegram account has been linked successfully!\n\n" + votingPageUrl
+                            ))
+                            .retrieve()
+                            .toBodilessEntity();
+                } catch (Exception ex) {
+                    log.warn("Unable to send link confirmation to chatId {}: {}", chatId, ex.getMessage());
+                }
+            } else {
+                log.warn("Received /start with token '{}', but token was not found or expired. Active tokens: {}", token, linkExpiry.keySet());
             }
         }
-
-        // A chat is linked only when Telegram supplies the exact /start token.
-        // Linking arbitrary messages could assign one chat to another user's request.
     }
 
     public void sendOtp(String chatId, String otp) {

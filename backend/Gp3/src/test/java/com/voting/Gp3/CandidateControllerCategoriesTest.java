@@ -48,7 +48,7 @@ class CandidateControllerCategoriesTest {
         assertEquals(4, savedCandidates.size());
         assertEquals(
             new HashSet<>(List.of("Queen", "Style", "Ms. Popular", "Princess")),
-            new HashSet<>(savedCandidates.stream().map(Candidate::getCategory).toList())
+            new HashSet<>(savedCandidates.stream().map(saved -> saved.getCategory()).toList())
         );
         verify(repository, times(4)).save(any(Candidate.class));
     }

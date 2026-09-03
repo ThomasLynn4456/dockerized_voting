@@ -175,6 +175,255 @@ a{color:inherit}
 .page-content::-webkit-scrollbar-thumb{background:linear-gradient(var(--gold2),#9b771b);border-radius:20px}
 
 /* Home */
+.student-status-card {
+  position: relative;
+  width: min(92%, 1000px);
+  margin: 2px auto 22px;
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(240, 196, 79, .42);
+  border-radius: 18px;
+  background:
+    linear-gradient(110deg, rgba(23, 58, 108, .92), rgba(7, 24, 57, .96));
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.student-status-card::after {
+  content: "";
+  position: absolute;
+  right: -45px;
+  bottom: -65px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: rgba(240, 196, 79, .09);
+  pointer-events: none;
+}
+
+.student-status-card.is-eligible {
+  border-left: 4px solid #f0c44f;
+}
+
+.student-status-card.is-complete {
+  border-left: 4px solid #4ade80;
+}
+
+.student-status-identity,
+.student-status-actions,
+.eligibility-badge {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.student-status-identity {
+  min-width: 0;
+  gap: 12px;
+}
+
+.student-avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 230, 163, .55);
+  border-radius: 14px;
+  color: #071a38;
+  background: linear-gradient(135deg, #ffe6a3, #d4af37);
+  box-shadow: 0 7px 18px rgba(212, 175, 55, .22);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.student-status-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.student-status-label,
+.eligibility-badge small {
+  color: #91a8c8;
+  font-family: Arial, sans-serif;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.student-status-copy strong {
+  overflow: hidden;
+  color: #fff8df;
+  font-size: .98rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-status-copy small {
+  color: #b8c9e0;
+  font-family: Arial, sans-serif;
+  font-size: .75rem;
+}
+
+.student-status-actions {
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.eligibility-badge {
+  min-height: 42px;
+  padding: 8px 13px;
+  gap: 8px;
+  border: 1px solid rgba(240, 196, 79, .52);
+  border-radius: 999px;
+  color: #ffe6a3;
+  background: rgba(240, 196, 79, .1);
+  font-family: Arial, sans-serif;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.is-complete .eligibility-badge {
+  border-color: rgba(74, 222, 128, .5);
+  color: #86efac;
+  background: rgba(74, 222, 128, .1);
+}
+
+.student-logout-button {
+  min-height: 42px;
+  padding: 8px 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 12px;
+  color: #dce7f6;
+  cursor: pointer;
+  background: rgba(255, 255, 255, .06);
+  font-family: Arial, sans-serif;
+  font-size: .76rem;
+  font-weight: 800;
+  transition: border-color .2s ease, background-color .2s ease, transform .2s ease;
+}
+
+.student-logout-button:hover {
+  border-color: rgba(240, 196, 79, .55);
+  color: #ffe6a3;
+  background: rgba(240, 196, 79, .1);
+  transform: translateY(-1px);
+}
+
+.student-logout-button:focus-visible {
+  outline: 2px solid #f0c44f;
+  outline-offset: 2px;
+}
+
+.logout-warning-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 3, 18, .76);
+  backdrop-filter: blur(8px);
+}
+
+.logout-warning-dialog {
+  width: min(100%, 430px);
+  padding: 26px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  border: 1px solid rgba(251, 191, 36, .48);
+  border-radius: 22px;
+  background: linear-gradient(145deg, #102d5a, #07162f);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .58), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.logout-warning-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(251, 191, 36, .45);
+  border-radius: 15px;
+  color: #fcd34d;
+  background: rgba(251, 191, 36, .12);
+  font-size: 1.2rem;
+}
+
+.logout-warning-label {
+  color: #fcd34d;
+  font-family: Arial, sans-serif;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.logout-warning-dialog h2 {
+  margin: 5px 0 8px;
+  color: #fff8df;
+  font-size: 1.18rem;
+  line-height: 1.35;
+}
+
+.logout-warning-dialog p {
+  margin: 0;
+  color: #b9c9df;
+  font-family: Arial, sans-serif;
+  font-size: .85rem;
+  line-height: 1.55;
+}
+
+.logout-warning-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.logout-warning-actions button {
+  min-height: 46px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+.logout-cancel-button {
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: #dce7f6;
+  background: rgba(255, 255, 255, .06);
+}
+
+.logout-confirm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #f59e0b;
+  color: #211400;
+  background: linear-gradient(135deg, #fcd34d, #d89012);
+  box-shadow: 0 10px 24px rgba(217, 137, 18, .22);
+}
+
+.logout-warning-actions button:focus-visible {
+  outline: 2px solid #ffe6a3;
+  outline-offset: 2px;
+}
+
 .hero-section {
 
     padding: 0px 30px   ;
@@ -350,6 +599,37 @@ a{color:inherit}
   .vote-actions{justify-content:center;text-align:center}
   .navbar{padding:0 3px}
   .nav-item{min-width:45px;font-size:8px}
+  .student-status-card {
+    width: calc(100% - 20px);
+    margin: 4px auto 16px;
+    padding: 13px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 13px;
+  }
+  .student-status-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .eligibility-badge {
+    justify-content: center;
+    border-radius: 12px;
+  }
+  .student-logout-button {
+    width: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+  .student-logout-button i { font-size: .9rem; }
+  .logout-warning-dialog {
+    padding: 20px 16px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 12px;
+    border-radius: 18px;
+  }
+  .logout-warning-icon { width: 42px; height: 42px; }
+  .logout-warning-actions { grid-template-columns: 1fr; }
 }
 @media(max-width:370px){
   .cards-container{grid-template-columns:1fr}

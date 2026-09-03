@@ -8,9 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.core.io.PathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -95,7 +94,7 @@ public class CandidateController {
 
         return rawCategories.stream()
             .filter(category -> category != null && !category.isBlank())
-            .map(String::trim)
+            .map(category -> category == null ? "" : category.trim())
             .distinct()
             .toList();
     }
@@ -122,13 +121,18 @@ public class CandidateController {
 
                     Candidate existing = candidateMap.computeIfAbsent(candidateId, id -> copyCandidate(candidate));
                     existing.getTitles().add(title.getName());
-                    existing.getTitleVoteCounts().put(title.getName(), ((Number) row.get("votes")).intValue());
-                    existing.getTitleStudentVoteCounts().put(title.getName(), ((Number) row.get("student_votes")).intValue());
-                    existing.getTitleTeacherVoteCounts().put(title.getName(), ((Number) row.get("teacher_votes")).intValue());
+                    Number votesNum = (Number) row.get("votes");
+                    Number studentVotesNum = (Number) row.get("student_votes");
+                    Number teacherVotesNum = (Number) row.get("teacher_votes");
+                    Number noNum = (Number) row.get("no");
+
+                    existing.getTitleVoteCounts().put(title.getName(), Integer.valueOf(votesNum != null ? votesNum.intValue() : 0));
+                    existing.getTitleStudentVoteCounts().put(title.getName(), Integer.valueOf(studentVotesNum != null ? studentVotesNum.intValue() : 0));
+                    existing.getTitleTeacherVoteCounts().put(title.getName(), Integer.valueOf(teacherVotesNum != null ? teacherVotesNum.intValue() : 0));
                     existing.setCategory(existing.getCategory() == null ? title.getName() : existing.getCategory());
                     existing.setTitleName(existing.getTitleName() == null ? title.getName() : existing.getTitleName());
-                    existing.setNo(existing.getNo() != null ? existing.getNo() : ((Number) row.get("no")).intValue());
-                    existing.setVotes(existing.getVotes() != null ? existing.getVotes() : ((Number) row.get("votes")).intValue());
+                    existing.setNo(existing.getNo() != null ? existing.getNo() : Integer.valueOf(noNum != null ? noNum.intValue() : 0));
+                    existing.setVotes(existing.getVotes() != null ? existing.getVotes() : Integer.valueOf(votesNum != null ? votesNum.intValue() : 0));
                 }
             }
             return new ArrayList<>(candidateMap.values());
@@ -149,7 +153,14 @@ public class CandidateController {
             for (TitleCandidate link : links) {
                 existing.getTitles().add(link.getTitle().getName());
                 existing.setTitleCandidateId(existing.getTitleCandidateId() == null ? link.getId() : existing.getTitleCandidateId());
-                existing.setVotes(existing.getVotes() == null ? link.getVotes() : Math.max(existing.getVotes(), link.getVotes()));
+                Integer linkVotes = link.getVotes();
+                Integer existingVotes = existing.getVotes();
+                if (existingVotes == null) {
+                    existing.setVotes(linkVotes);
+                } else {
+                    int currentLinkVotes = linkVotes != null ? linkVotes.intValue() : 0;
+                    existing.setVotes(Integer.valueOf(Math.max(existingVotes.intValue(), currentLinkVotes)));
+                }
             }
         }
 
@@ -179,7 +190,7 @@ public class CandidateController {
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType(contentType))
             .header(HttpHeaders.CACHE_CONTROL, "max-age=3600")
-            .body(new PathResource(imagePath));
+            .body(new org.springframework.core.io.FileSystemResource(imagePath));
     }
 
     @PostMapping("/candidates")

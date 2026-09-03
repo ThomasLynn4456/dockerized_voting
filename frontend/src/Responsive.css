@@ -1,0 +1,302 @@
+/* Shared phone refinements. The welcome route is intentionally excluded. */
+@media (max-width: 768px) {
+  /* Shared student pages */
+  .app-container:not(.welcome-container) .header {
+    min-height: 72px;
+    padding: 8px 12px;
+  }
+
+  .app-container:not(.welcome-container) .header-logo {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+  }
+
+  .app-container:not(.welcome-container) .header-title {
+    min-width: 0;
+  }
+
+  .app-container:not(.welcome-container) .header-title h1 {
+    font-size: clamp(1rem, 5vw, 1.35rem);
+    line-height: 1.15;
+  }
+
+  .app-container:not(.welcome-container) .page-content {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .app-container:not(.welcome-container) .page-heading {
+    width: 100%;
+    padding: 18px 4px 12px;
+  }
+
+  .app-container:not(.welcome-container) .page-heading h1 {
+    font-size: clamp(1.65rem, 8vw, 2.3rem);
+  }
+
+  .app-container:not(.welcome-container) .candidates-grid {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .app-container:not(.welcome-container) .candidate-card {
+    width: 100%;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .app-container:not(.welcome-container) .candidate-image-box {
+    width: 100%;
+    height: clamp(260px, 92vw, 420px);
+  }
+
+  .app-container:not(.welcome-container) .candidate-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+  }
+
+  .app-container:not(.welcome-container) .category-tile,
+  .app-container:not(.welcome-container) button {
+    min-height: 44px;
+  }
+
+  /* Home */
+  .home-page .hero-card {
+    width: 100%;
+    padding: 20px 12px;
+  }
+
+  .home-page .main-title {
+    font-size: clamp(1.75rem, 9vw, 2.75rem);
+    overflow-wrap: anywhere;
+  }
+
+  .home-page .cards-container {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 10px 4px 24px;
+  }
+
+  .home-page .category-card {
+    min-width: 0;
+    padding: 12px 8px;
+  }
+
+  /* About */
+  .about-page .about-header {
+    min-height: 72px;
+    padding: 8px 12px;
+  }
+
+  .about-page .about-content,
+  .about-page .about-heading,
+  .about-page .about-cards,
+  .about-page .about-thank-you {
+    width: 100%;
+  }
+
+  .about-page .about-content {
+    padding: 20px 14px 92px;
+  }
+
+  .about-page .about-cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  /* Login */
+  .auth-page {
+    min-height: 100dvh;
+    padding: 20px 14px;
+  }
+
+  .auth-card {
+    width: 100%;
+    padding: 26px 18px;
+    border-radius: 20px;
+  }
+
+  .auth-button {
+    min-height: 48px;
+  }
+
+  /* Teacher ballot */
+  .teacher-vote-page {
+    min-height: 100dvh;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+
+  .teacher-vote-header {
+    padding: 12px 14px;
+  }
+
+  .teacher-gender-tabs,
+  .teacher-ballot {
+    width: calc(100% - 20px);
+  }
+
+  .teacher-gender-tabs button {
+    min-height: 46px;
+  }
+
+  .teacher-candidate-image {
+    height: clamp(260px, 95vw, 420px);
+  }
+
+  .teacher-title-buttons button {
+    min-height: 48px;
+  }
+
+  /* Admin dashboard: undo the desktop minimum width and stack work areas. */
+  .dashboard-page {
+    width: 100%;
+    min-width: 0 !important;
+    padding: 14px 10px 40px !important;
+    overflow-x: hidden;
+  }
+
+  .dashboard-header {
+    padding: 16px !important;
+    border-radius: 16px;
+  }
+
+  .dashboard-header h1 {
+    font-size: clamp(1.75rem, 8vw, 2.35rem) !important;
+  }
+
+  .dashboard-header-status {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .overview-card {
+    min-height: 100px;
+    padding: 14px;
+  }
+
+  .overview-card strong {
+    font-size: 1.55rem;
+  }
+
+  .leaderboard-panel,
+  .vote-split-editor,
+  .teacher-token-panel,
+  .dashboard-workspace-card,
+  .candidate-form,
+  .section-card {
+    width: 100%;
+    padding: 15px !important;
+    border-radius: 16px;
+  }
+
+  .panel-heading-row,
+  .teacher-token-header,
+  .teacher-token-box,
+  .teacher-token-actions,
+  .section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .leaderboard-table {
+    min-width: 680px;
+  }
+
+  .leaderboard-table-wrap {
+    margin-right: -15px;
+    margin-left: -15px;
+    padding: 0 15px 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vote-summary-grid,
+  .vote-split-editor,
+  .teacher-token-history-list,
+  .dashboard-layout,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-workspace-card {
+    position: static;
+  }
+
+  .teacher-token-value {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .teacher-token-actions button,
+  .title-form-actions button,
+  .form-actions button,
+  .candidate-actions button {
+    min-height: 44px;
+  }
+
+  .profile-row {
+    align-items: center;
+  }
+
+  .candidate-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Persistent bottom navigation */
+  .navbar {
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 4px 6px env(safe-area-inset-bottom);
+  }
+
+  .navbar .nav-item {
+    min-width: 0;
+    min-height: 52px;
+    padding: 4px 2px;
+    font-size: 0.64rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .home-page .cards-container {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overview-card {
+    min-height: 88px;
+  }
+
+  .teacher-candidate-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .teacher-candidate-stats div {
+    min-height: 46px;
+  }
+
+  .app-container:not(.welcome-container) .candidate-image-box {
+    height: clamp(240px, 105vw, 390px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .app-container:not(.welcome-container) .header {
+    min-height: 58px;
+  }
+
+  .teacher-candidate-image,
+  .app-container:not(.welcome-container) .candidate-image-box {
+    height: min(72vh, 320px);
+  }
+}
