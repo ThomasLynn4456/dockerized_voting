@@ -1,0 +1,3 @@
+# Deployment secrets (copy .env.example to .env on the server)
+.env
+

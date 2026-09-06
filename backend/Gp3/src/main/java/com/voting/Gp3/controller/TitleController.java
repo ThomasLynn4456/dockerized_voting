@@ -3,7 +3,9 @@ package com.voting.Gp3.controller;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -208,12 +210,21 @@ public class TitleController {
 
         int studentWeight = payload == null ? -1 : payload.getOrDefault("studentWeight", -1);
         int teacherWeight = payload == null ? -1 : payload.getOrDefault("teacherWeight", -1);
+        Long requestedCandidateId = payload == null || payload.get("candidateId") == null
+                ? null : payload.get("candidateId").longValue();
         if (studentWeight < 0 || teacherWeight < 0 || studentWeight + teacherWeight != 100) {
             return ResponseEntity.badRequest().body("Student and teacher weights must be non-negative and total 100.");
         }
 
         Candidate leader = null;
         double highestScore = Double.NEGATIVE_INFINITY;
+        double highestTeacherVotes = Double.NEGATIVE_INFINITY;
+        boolean preferTeacherOnTie = studentWeight == 50 && teacherWeight == 50;
+        Set<Long> candidatesAlreadyWinningOtherTitles = publishedTitleResultRepository
+                .findAllByOrderByPublishedAtDesc().stream()
+                .filter(result -> !result.getTitle().getId().equals(title.getId()))
+                .map(result -> result.getCandidate().getId())
+                .collect(Collectors.toSet());
         List<Map<String, Object>> rows = titleTableService.rows(title);
         double totalStudentVotes = rows.stream()
                 .mapToDouble(row -> ((Number) row.get("student_votes")).doubleValue())
@@ -222,20 +233,45 @@ public class TitleController {
                 .mapToDouble(row -> ((Number) row.get("teacher_votes")).doubleValue())
                 .sum();
 
+        if (requestedCandidateId != null) {
+            boolean registered = rows.stream().anyMatch(row ->
+                    ((Number) row.get("candidate_id")).longValue() == requestedCandidateId);
+            if (!registered || candidatesAlreadyWinningOtherTitles.contains(requestedCandidateId)) {
+                return ResponseEntity.badRequest().body("The selected candidate cannot be published for this title.");
+            }
+            leader = candidateRepository.findById(requestedCandidateId).orElse(null);
+            if (leader == null) {
+                return ResponseEntity.badRequest().body("The selected candidate could not be found.");
+            }
+        }
+
         for (Map<String, Object> row : rows) {
+            if (requestedCandidateId != null) {
+                break;
+            }
+            long candidateId = ((Number) row.get("candidate_id")).longValue();
+            if (candidatesAlreadyWinningOtherTitles.contains(candidateId)) {
+                continue;
+            }
+            double candidateTeacherVotes = ((Number) row.get("teacher_votes")).doubleValue();
             double studentScore = totalStudentVotes == 0 ? 0
                     : ((Number) row.get("student_votes")).doubleValue() / totalStudentVotes * studentWeight;
             double teacherScore = totalTeacherVotes == 0 ? 0
-                    : ((Number) row.get("teacher_votes")).doubleValue() / totalTeacherVotes * teacherWeight;
+                    : candidateTeacherVotes / totalTeacherVotes * teacherWeight;
             double score = studentScore + teacherScore;
-            if (score > highestScore) {
-                leader = candidateRepository.findById(((Number) row.get("candidate_id")).longValue()).orElse(null);
+            boolean hasHigherScore = score > highestScore;
+            boolean winsTeacherTieBreak = preferTeacherOnTie
+                    && Math.abs(score - highestScore) < 0.000001
+                    && candidateTeacherVotes > highestTeacherVotes;
+            if (hasHigherScore || winsTeacherTieBreak) {
+                leader = candidateRepository.findById(candidateId).orElse(null);
                 highestScore = score;
+                highestTeacherVotes = candidateTeacherVotes;
             }
         }
 
         if (leader == null) {
-            return ResponseEntity.badRequest().body("This title has no candidates to publish.");
+            return ResponseEntity.badRequest().body("This title has no available candidate. A candidate can win only one title.");
         }
 
         PublishedTitleResult result = publishedTitleResultRepository.findByTitle(title)

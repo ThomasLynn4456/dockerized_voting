@@ -28,6 +28,8 @@ import com.voting.Gp3.Candidate;
 import com.voting.Gp3.Title;
 import com.voting.Gp3.TitleCandidate;
 import com.voting.Gp3.repository.CandidateRepository;
+import com.voting.Gp3.repository.CandidateImageRepository;
+import com.voting.Gp3.entity.CandidateImage;
 import com.voting.Gp3.repository.TitleCandidateRepository;
 import com.voting.Gp3.repository.TitleRepository;
 import com.voting.Gp3.service.ImageStorageService;
@@ -42,25 +44,33 @@ public class CandidateController {
     private final TitleRepository titleRepository;
     private final TitleCandidateRepository titleCandidateRepository;
     private final TitleTableService titleTableService;
+    private final CandidateImageRepository candidateImageRepository;
 
     public CandidateController(CandidateRepository candidateRepository, ImageStorageService imageStorageService) {
-        this(candidateRepository, imageStorageService, null, null, null);
+        this(candidateRepository, imageStorageService, null, null, null, null);
     }
 
     public CandidateController(CandidateRepository candidateRepository, ImageStorageService imageStorageService,
                                TitleRepository titleRepository, TitleCandidateRepository titleCandidateRepository) {
-        this(candidateRepository, imageStorageService, titleRepository, titleCandidateRepository, null);
+        this(candidateRepository, imageStorageService, titleRepository, titleCandidateRepository, null, null);
+    }
+
+    public CandidateController(CandidateRepository candidateRepository, ImageStorageService imageStorageService,
+                               TitleRepository titleRepository, TitleCandidateRepository titleCandidateRepository,
+                               TitleTableService titleTableService) {
+        this(candidateRepository, imageStorageService, titleRepository, titleCandidateRepository, titleTableService, null);
     }
 
     @Autowired
     public CandidateController(CandidateRepository candidateRepository, ImageStorageService imageStorageService,
                                TitleRepository titleRepository, TitleCandidateRepository titleCandidateRepository,
-                               TitleTableService titleTableService) {
+                               TitleTableService titleTableService, CandidateImageRepository candidateImageRepository) {
         this.candidateRepository = candidateRepository;
         this.imageStorageService = imageStorageService;
         this.titleRepository = titleRepository;
         this.titleCandidateRepository = titleCandidateRepository;
         this.titleTableService = titleTableService;
+        this.candidateImageRepository = candidateImageRepository;
     }
 
     private List<String> getCategoriesForGender(String gender) {
@@ -120,6 +130,7 @@ public class CandidateController {
                     if (candidate == null) continue;
 
                     Candidate existing = candidateMap.computeIfAbsent(candidateId, id -> copyCandidate(candidate));
+                    addGallery(existing);
                     existing.getTitles().add(title.getName());
                     Number votesNum = (Number) row.get("votes");
                     Number studentVotesNum = (Number) row.get("student_votes");
@@ -144,6 +155,7 @@ public class CandidateController {
 
         for (Candidate candidate : candidateRepository.findAll()) {
             Candidate existing = candidateMap.computeIfAbsent(candidate.getId(), id -> copyCandidate(candidate));
+            addGallery(existing);
             List<TitleCandidate> links = titleCandidateRepository.findByCandidate(candidate);
             if (links.isEmpty()) {
                 existing.getTitles().add(candidate.getCategory() == null ? "General" : candidate.getCategory());
@@ -165,6 +177,46 @@ public class CandidateController {
         }
 
         return new ArrayList<>(candidateMap.values());
+    }
+
+    private void addGallery(Candidate candidate) {
+        if (candidateImageRepository == null || candidate == null) return;
+        candidate.setGallery(candidateImageRepository.findAllByCandidateOrderByDisplayOrderAscIdAsc(candidate).stream()
+            .map(CandidateImage::getImagePath).toList());
+    }
+
+    @GetMapping("/candidates/{id}/images")
+    public ResponseEntity<?> getCandidateImages(@PathVariable Long id) {
+        Candidate candidate = candidateRepository.findById(id).orElse(null);
+        if (candidate == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(candidateImageRepository.findAllByCandidateOrderByDisplayOrderAscIdAsc(candidate).stream()
+            .map(CandidateImage::getImagePath).toList());
+    }
+
+    @PostMapping("/candidates/{id}/images")
+    @Transactional
+    public ResponseEntity<?> addCandidateImage(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        Candidate candidate = candidateRepository.findById(id).orElse(null);
+        String image = payload == null ? null : payload.get("image");
+        if (candidate == null) return ResponseEntity.notFound().build();
+        if (image == null || image.isBlank()) return ResponseEntity.badRequest().body("An image is required.");
+        CandidateImage record = new CandidateImage();
+        record.setCandidate(candidate);
+        record.setImagePath(saveCandidateImageIfNeeded(image));
+        record.setDisplayOrder(candidateImageRepository.findAllByCandidateOrderByDisplayOrderAscIdAsc(candidate).size());
+        return ResponseEntity.status(HttpStatus.CREATED).body(candidateImageRepository.save(record).getImagePath());
+    }
+
+    @DeleteMapping("/candidates/{candidateId}/images/{imageId}")
+    @Transactional
+    public ResponseEntity<?> deleteCandidateImage(@PathVariable Long candidateId, @PathVariable Long imageId) {
+        CandidateImage record = candidateImageRepository.findById(imageId).orElse(null);
+        if (record == null || record.getCandidate().getId() == null || !record.getCandidate().getId().equals(candidateId)) {
+            return ResponseEntity.notFound().build();
+        }
+        imageStorageService.deleteImage(record.getImagePath());
+        candidateImageRepository.delete(record);
+        return ResponseEntity.noContent().build();
     }
 
     private Candidate copyCandidate(Candidate source) {
@@ -194,6 +246,7 @@ public class CandidateController {
     }
 
     @PostMapping("/candidates")
+    @Transactional
     public ResponseEntity<?> createCandidate(@RequestBody Candidate candidate) {
         if (candidate.getName() == null || candidate.getName().isBlank()) {
             return ResponseEntity.badRequest().body("Candidate name is required.");
@@ -211,8 +264,11 @@ public class CandidateController {
         if (titleRepository != null && (candidate.getNo() == null || candidate.getNo() < 1)) {
             return ResponseEntity.badRequest().body("Candidate number must be a positive number.");
         }
-        if (titleRepository != null && candidateRepository.existsByNo(candidate.getNo())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Candidate number " + candidate.getNo() + " already exists.");
+        if (titleRepository != null
+                && candidateRepository.existsByNoAndGenderIgnoreCase(candidate.getNo(), gender)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                "Candidate number " + candidate.getNo() + " already exists for " + gender + " candidates."
+            );
         }
 
         if (titleTableService != null) {
@@ -285,8 +341,10 @@ public class CandidateController {
                 Candidate copy = copyCandidate(candidate);
                 copy.setCategory(title.getName());
                 copy.setTitleName(title.getName());
-                copy.setNo((Integer) row.get("no"));
-                copy.setVotes((Integer) row.get("votes"));
+                Number candidateNo = (Number) row.get("no");
+                Number candidateVotes = (Number) row.get("votes");
+                copy.setNo(candidateNo == null ? null : Integer.valueOf(candidateNo.intValue()));
+                copy.setVotes(candidateVotes == null ? 0 : Integer.valueOf(candidateVotes.intValue()));
                 response.add(copy);
             }
         }
@@ -333,8 +391,13 @@ public class CandidateController {
         if (titleRepository != null && (candidate.getNo() == null || candidate.getNo() < 1)) {
             return ResponseEntity.badRequest().body("Candidate number must be a positive number.");
         }
-        if (titleRepository != null && candidateRepository.existsByNoAndIdNot(candidate.getNo(), id)) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Candidate number " + candidate.getNo() + " already exists.");
+        if (titleRepository != null
+                && candidateRepository.existsByNoAndGenderIgnoreCaseAndIdNot(
+                    candidate.getNo(), candidate.getGender(), id)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                "Candidate number " + candidate.getNo() + " already exists for "
+                    + candidate.getGender() + " candidates."
+            );
         }
         if (titleTableService != null) {
             return updatePhysicalTableCandidate(id, candidate);
@@ -459,27 +522,28 @@ public class CandidateController {
     @DeleteMapping("/candidates/{id}")
     @Transactional
     public ResponseEntity<Void> deleteCandidate(@PathVariable Long id) {
-        if (!candidateRepository.existsById(id)) {
+        Candidate candidate = candidateRepository.findById(id).orElse(null);
+        if (candidate == null) {
             return ResponseEntity.notFound().build();
         }
 
-        Candidate candidate = candidateRepository.findById(id).orElse(null);
-        if (candidate != null && candidate.getPhoto() != null && candidate.getPhoto().contains("candidates_images/")) {
-            imageStorageService.deleteImage(candidate.getPhoto());
-        }
+        String candidatePhoto = candidate.getPhoto();
 
-        if (titleTableService != null && candidate != null) {
+        if (titleTableService != null) {
             for (Title title : titleRepository.findAll()) {
                 titleTableService.removeCandidate(title, id);
-                titleTableService.resequence(title);
             }
-        } else if (titleRepository != null && candidate != null) {
+        } else if (titleRepository != null) {
             titleCandidateRepository.findByCandidate(candidate).forEach(titleCandidateRepository::delete);
         }
+
         candidateRepository.deleteById(id);
-        if (titleTableService == null && titleRepository != null) {
-            resequenceCandidates();
+        candidateRepository.flush();
+
+        if (candidatePhoto != null && candidatePhoto.contains("candidates_images/")) {
+            imageStorageService.deleteImage(candidatePhoto);
         }
+
         return ResponseEntity.noContent().build();
     }
 
@@ -494,18 +558,6 @@ public class CandidateController {
             titleCandidateRepository.save(link);
             return ResponseEntity.ok(link.getVotes());
         }).orElse(ResponseEntity.notFound().build());
-    }
-
-    private void resequenceCandidates() {
-        int number = 1;
-        for (Candidate candidate : candidateRepository.findAll().stream().sorted((left, right) -> left.getId().compareTo(right.getId())).toList()) {
-            candidate.setNo(number++);
-            candidateRepository.save(candidate);
-            titleCandidateRepository.findByCandidate(candidate).forEach(link -> {
-                link.setNo(candidate.getNo());
-                titleCandidateRepository.save(link);
-            });
-        }
     }
 
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCurrentStudent, saveStudentSession } from "../utils/studentSession";
+import CandidateGallery from "../components/CandidateGallery";
 
 import "./Girl.css";
 
@@ -267,7 +268,7 @@ function Girl() {
                     <VoteCelebration candidateName={celebration.candidateName} category={celebration.category} />
                   )}
                   <div className="candidate-image-box">
-                    <img src={resolveImageUrl(candidate.photo)} alt={candidate.name} className="candidate-image" />
+                    <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} className="candidate-image" />
                     <span className="candidate-number-badge">No. {candidate.no || (idx + 1)}</span>
                   </div>
 
@@ -280,7 +281,7 @@ function Girl() {
                     <div className="candidate-info-box"><span>Talent</span><strong>{candidate.talent || "-"}</strong></div>
                   </div>
 
-                  <div className="candidate-titles-row" style={{ display: "flex", flexWrap: "wrap", gap: "8px", margin: "12px 0" }}>
+                  {/* <div className="candidate-titles-row" style={{ display: "flex", flexWrap: "wrap", gap: "8px", margin: "12px 0" }}>
                     {titleList.map((title) => {
                       const studentCount = Number(candidate.titleStudentVoteCounts?.[title] ?? 0);
                       const teacherCount = Number(candidate.titleTeacherVoteCounts?.[title] ?? 0);
@@ -297,11 +298,11 @@ function Girl() {
                           letterSpacing: "0.04em",
                           textTransform: "uppercase"
                         }}>
-                                                                    {title} • S:{studentCount} T:{teacherCount}
+                           {title} • S:{studentCount} T:{teacherCount}
                         </span>
                       );
                     })}
-                  </div>
+                  </div> */}
 
                   <div className="single-vote-box" style={{ width: "100%", display: "grid", gap: "10px" }}>
                     {titleList.map((category) => {

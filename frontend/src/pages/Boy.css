@@ -662,6 +662,24 @@ input {
   overflow: hidden;
 }
 
+/* Voting UX polish */
+.candidate-card {
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.candidate-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(255, 217, 120, .78);
+  box-shadow: 0 22px 42px rgba(0, 0, 0, .42), 0 0 24px rgba(229, 163, 50, .16);
+}
+.category-tile {
+  min-height: 52px;
+  letter-spacing: .08em;
+  transition: transform .2s ease, filter .2s ease, box-shadow .2s ease;
+}
+.category-tile:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-2px); box-shadow: 0 10px 22px rgba(229, 163, 50, .22); }
+.category-tile:focus-visible, .header-back:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 3px; }
+.student-pill { box-shadow: 0 8px 24px rgba(0, 0, 0, .2); }
+
 .vote-celebration {
   position: absolute;
   inset: 0;

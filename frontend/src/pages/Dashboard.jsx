@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import "./Dashboard.css";
 import { getVoteRatio, setVoteRatio } from "../utils/voteStore";
+import CandidateGallery from "../components/CandidateGallery";
 
 const API_URL = "/api/candidates";
 const TITLES_API_URL = "/api/titles";
@@ -27,6 +28,7 @@ function Dashboard() {
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [selectedFileName, setSelectedFileName] = useState("");
+    const [galleryImages, setGalleryImages] = useState([]);
     const [teacherToken, setTeacherToken] = useState("");
     const [teacherQrCode, setTeacherQrCode] = useState("");
     const [teacherTokenExpiresAt, setTeacherTokenExpiresAt] = useState("");
@@ -193,7 +195,11 @@ function Dashboard() {
                 method: "PUT",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ studentWeight: voteRatio.student, teacherWeight: voteRatio.teacher }),
+                body: JSON.stringify({
+                    studentWeight: voteRatio.student,
+                    teacherWeight: voteRatio.teacher,
+                    candidateId: row.candidateId,
+                }),
             });
             if (!response.ok) {
                 throw new Error(await response.text() || "Unable to update the published result.");
@@ -266,7 +272,7 @@ function Dashboard() {
 
             setTeacherToken(data.token);
             setTeacherQrCode(qrDataUrl);
-            setTeacherTokenExpiresAt(data.expiresAt || "15 minutes");
+            setTeacherTokenExpiresAt(data.expiresAt || "3 hours");
             await loadTeacherTokens();
             setSuccessMessage("Teacher QR code generated successfully.");
         } catch (tokenError) {
@@ -389,7 +395,23 @@ function Dashboard() {
         reader.readAsDataURL(file);
     };
 
+    const handleGalleryChange = (event) => {
+        const files = Array.from(event.target.files || []);
+        if (files.some((file) => !file.type.startsWith("image/") || file.size > 20 * 1024 * 1024)) {
+            setError("Gallery images must be valid image files smaller than 20 MB each.");
+            event.target.value = "";
+            return;
+        }
+        Promise.all(files.map((file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        }))).then(setGalleryImages).catch(() => setError("Failed to read gallery images."));
+    };
+
     const resetForm = () => {
+        setGalleryImages([]);
         setFormData({
             no: "",
             name: "",
@@ -460,6 +482,16 @@ function Dashboard() {
             return;
         }
 
+        const duplicateNumber = candidates.some((candidate) =>
+            candidate.id !== editingId
+            && Number(candidate.no) === candidateNo
+            && String(candidate.gender).toLowerCase() === formData.gender.toLowerCase()
+        );
+        if (duplicateNumber) {
+            setError(`Candidate number ${candidateNo} already exists for ${formData.gender} candidates.`);
+            return;
+        }
+
         const categoriesForGender = titles
             .filter((title) => title.gender === formData.gender)
             .map((title) => title.name);
@@ -500,8 +532,28 @@ function Dashboard() {
 
             if (!response.ok) {
                 const action = editingId !== null ? "update" : "add";
-                const message = responseText || `Unable to ${action} candidate (HTTP ${response.status}).`;
+                let serverMessage = responseText;
+                try {
+                    const errorBody = JSON.parse(responseText);
+                    serverMessage = errorBody.message || errorBody.error || responseText;
+                } catch {
+                    // The backend may return a plain-text validation message.
+                }
+                const message = serverMessage || `Unable to ${action} candidate (HTTP ${response.status}).`;
                 throw new Error(message);
+            }
+
+            if (galleryImages.length > 0) {
+                const savedPayload = responseText ? JSON.parse(responseText) : null;
+                const savedCandidateId = editingId !== null
+                    ? editingId
+                    : (Array.isArray(savedPayload) ? savedPayload[0]?.id : savedPayload?.id);
+                if (savedCandidateId) {
+                    await Promise.all(galleryImages.map((image) => fetch(`${API_URL}/${savedCandidateId}/images`, {
+                        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ image }),
+                    })));
+                }
             }
 
             const successText = editingId !== null ? "Candidate updated successfully." : "Candidate uploaded successfully.";
@@ -540,10 +592,14 @@ function Dashboard() {
         }
 
         try {
-            const response = await fetch(`${API_URL}/${candidateId}`, { method: "DELETE" });
+            const response = await fetch(`${API_URL}/${candidateId}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
 
             if (!response.ok) {
-                throw new Error("Unable to delete candidate.");
+                const responseText = await response.text();
+                throw new Error(responseText || `Unable to delete candidate (HTTP ${response.status}).`);
             }
 
             if (editingId === candidateId) {
@@ -551,17 +607,18 @@ function Dashboard() {
             }
 
             await loadCandidates();
+            await loadVoteSummary();
+            await loadPublishedResults();
+            setError("");
+            setSuccessMessage(`Candidate number ${candidate?.no ?? ""} was deleted and is available again.`);
         } catch (deleteError) {
+            setSuccessMessage("");
             setError(deleteError.message || "Could not delete candidate.");
         }
     };
 
     const studentVotes = Number(backendVoteTotals.student || 0);
     const teacherVotes = Number(backendVoteTotals.teacher || 0);
-    // Display raw counts but use configured voteRatio for percentage split (sum = 100%)
-    const studentShare = voteRatio.student;
-    const teacherShare = voteRatio.teacher;
-
     const getTitleWeightedScore = (candidate, titleName) => {
         const findVote = (voteMap) => {
             const entry = Object.entries(voteMap || {}).find(
@@ -589,34 +646,82 @@ function Dashboard() {
         return studentScore + teacherScore;
     };
 
-    const getTitleLeader = (titleName) => {
+    const getTitleVoteCount = (candidate, titleName, voteMapName) => {
+        const entry = Object.entries(candidate?.[voteMapName] || {}).find(
+            ([key]) => String(key).toLowerCase() === String(titleName).toLowerCase()
+        );
+        return Number(entry?.[1] || 0);
+    };
+
+    const getTitleTeacherVotes = (candidate, titleName) =>
+        getTitleVoteCount(candidate, titleName, "titleTeacherVoteCounts");
+
+    const getTitleLeaders = (titleName, excludedCandidateIds = new Set()) => {
         const titleCandidates = (candidates || []).filter((candidate) => {
             if (!candidate || !candidate.titles) {
                 return false;
             }
-            return candidate.titles.some((title) => title && title.toLowerCase() === String(titleName).toLowerCase());
+            return !excludedCandidateIds.has(String(candidate.id))
+                && candidate.titles.some((title) => title && title.toLowerCase() === String(titleName).toLowerCase());
         });
 
         if (titleCandidates.length === 0) {
-            return null;
+            return [];
         }
 
-        return titleCandidates.reduce((leader, candidate) => {
-            const currentScore = getTitleWeightedScore(candidate, titleName);
-            const leaderScore = getTitleWeightedScore(leader, titleName);
-            return currentScore > leaderScore ? candidate : leader;
-        }, titleCandidates[0]);
+        const highestScore = Math.max(...titleCandidates.map((candidate) =>
+            getTitleWeightedScore(candidate, titleName)));
+        let leaders = titleCandidates.filter((candidate) =>
+            Math.abs(getTitleWeightedScore(candidate, titleName) - highestScore) < 0.000001
+        );
+        if (voteRatio.student === 50 && voteRatio.teacher === 50 && leaders.length > 1) {
+            const highestTeacherVotes = Math.max(...leaders.map((candidate) =>
+                getTitleTeacherVotes(candidate, titleName)));
+            leaders = leaders.filter((candidate) =>
+                getTitleTeacherVotes(candidate, titleName) === highestTeacherVotes
+            );
+        }
+        return leaders;
     };
 
-    const titleLeaderRows = (titles || []).map((title) => {
-        const leader = getTitleLeader(title.name);
-        return {
+    const assignedLeaderIds = new Set();
+    const titleLeaderRows = (titles || []).flatMap((title) => {
+        const leaders = getTitleLeaders(title.name, assignedLeaderIds);
+        leaders.forEach((leader) => assignedLeaderIds.add(String(leader.id)));
+        const rows = leaders.length > 0 ? leaders : [null];
+        return rows.map((leader, index) => ({
             title: title.name,
-            leaderName: leader?.name || "No leader yet",
-            weightedScore: leader ? getTitleWeightedScore(leader, title.name) : 0,
+            candidateNo: leader?.no ?? "—",
+            leaderName: leader?.name || "No eligible leader yet",
+            studentVotes: leader ? getTitleVoteCount(leader, title.name, "titleStudentVoteCounts") : 0,
+            teacherVotes: leader ? getTitleVoteCount(leader, title.name, "titleTeacherVoteCounts") : 0,
+            totalPercentage: leader ? getTitleWeightedScore(leader, title.name) : 0,
             candidateId: leader?.id || null,
             isAddedToResult: resultLeaders.some((item) => item.title.toLowerCase() === title.name.toLowerCase()),
-        };
+            isPrimaryLeader: index === 0,
+        }));
+    });
+
+    const allTitleResultRows = (titles || []).flatMap((title) => {
+        const titleCandidates = (candidates || [])
+            .filter((candidate) => candidate?.titles?.some((item) =>
+                String(item).toLowerCase() === String(title.name).toLowerCase()))
+            .sort((left, right) => {
+                const scoreDifference = getTitleWeightedScore(right, title.name)
+                    - getTitleWeightedScore(left, title.name);
+                if (Math.abs(scoreDifference) > 0.000001) return scoreDifference;
+                return getTitleTeacherVotes(right, title.name) - getTitleTeacherVotes(left, title.name);
+            });
+        return titleCandidates.map((candidate, index) => ({
+            title: title.name,
+            gender: title.gender || candidate.gender || "",
+            rank: index + 1,
+            candidateNo: candidate.no ?? "—",
+            candidateName: candidate.name,
+            studentVotes: getTitleVoteCount(candidate, title.name, "titleStudentVoteCounts"),
+            teacherVotes: getTitleVoteCount(candidate, title.name, "titleTeacherVoteCounts"),
+            totalPercentage: getTitleWeightedScore(candidate, title.name),
+        }));
     });
 
     const refreshDashboard = async () => {
@@ -658,10 +763,25 @@ function Dashboard() {
                 </div>
             </div>
 
-            {(error || successMessage) && (
-                <div className={`dashboard-notice ${error ? "error" : "success"}`} role={error ? "alert" : "status"}>
-                    <i className={`fa-solid ${error ? "fa-triangle-exclamation" : "fa-circle-check"}`} aria-hidden="true" />
-                    <span>{error || successMessage}</span>
+            {error && (
+                <div className="dashboard-error-popup-backdrop">
+                    <div className="dashboard-error-popup" role="alertdialog" aria-modal="true" aria-labelledby="dashboard-error-title">
+                        <span className="dashboard-error-popup-icon" aria-hidden="true">
+                            <i className="fa-solid fa-triangle-exclamation" />
+                        </span>
+                        <div>
+                            <h2 id="dashboard-error-title">Something needs your attention</h2>
+                            <p>{error}</p>
+                        </div>
+                        <button type="button" className="primary-button" onClick={() => setError("")} autoFocus>OK</button>
+                    </div>
+                </div>
+            )}
+
+            {successMessage && (
+                <div className="dashboard-notice success" role="status">
+                    <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                    <span>{successMessage}</span>
                     <button type="button" onClick={() => { setError(""); setSuccessMessage(""); }} aria-label="Dismiss notification">×</button>
                 </div>
             )}
@@ -679,7 +799,7 @@ function Dashboard() {
                         <p className="dashboard-kicker">Title Leaderboard</p>
                         <h2>Top candidate for each title</h2>
                     </div>
-                    <span className="panel-count">{titleLeaderRows.length} titles</span>
+                    <span className="panel-count">{titles.length} titles</span>
                 </div>
 
                 <div className="leaderboard-table-wrap">
@@ -687,22 +807,28 @@ function Dashboard() {
                         <thead>
                             <tr>
                                 <th>Title</th>
+                                <th>No.</th>
                                 <th>Current leader</th>
-                                <th>Weighted score</th>
+                                <th>Student votes</th>
+                                <th>Teacher votes</th>
+                                <th>Total vote %</th>
                                 <th>Result control</th>
                             </tr>
                         </thead>
                         <tbody>
                             {titleLeaderRows.length === 0 && (
                                 <tr>
-                                    <td colSpan="4" className="leaderboard-empty">Add an election title to start tracking leaders.</td>
+                                    <td colSpan="7" className="leaderboard-empty">Add an election title to start tracking leaders.</td>
                                 </tr>
                             )}
                             {titleLeaderRows.map((row) => (
-                                <tr key={row.title}>
+                                <tr key={`${row.title}-${row.candidateId ?? "none"}`}>
                                     <td><span className="title-table-name">{row.title}</span></td>
+                                    <td><strong className="candidate-number-cell">{row.candidateNo}</strong></td>
                                     <td>{row.leaderName}</td>
-                                    <td><strong className="weighted-score">{row.weightedScore.toFixed(2)}%</strong></td>
+                                    <td><strong className="student-vote-count">{row.studentVotes}</strong></td>
+                                    <td><strong className="teacher-vote-count">{row.teacherVotes}</strong></td>
+                                    <td><strong className="total-vote-percentage">{row.totalPercentage.toFixed(1)}%</strong></td>
                                     <td><div className="leaderboard-actions">
                                         <button
                                             type="button"
@@ -728,39 +854,49 @@ function Dashboard() {
                 </div>
             </section>
 
-            <div className="vote-summary-grid">
-                <div className="vote-summary-card student-card">
-                    <div className="vote-summary-header">
-                        <span>Student Votes</span>
-                        <strong>{studentVotes}</strong>
+            <section className="leaderboard-panel all-results-panel">
+                <div className="panel-heading-row">
+                    <div>
+                        <p className="dashboard-kicker">Complete Results</p>
+                        <h2>All candidates by title</h2>
                     </div>
-                    <div className="vote-summary-meta">
-                        <span>{Math.round(studentShare)}% of total</span>
-                    </div>
-                    <div className="progress-bar vote-split-bar" aria-label="Student vote share">
-                        <span style={{ width: `${studentShare}%` }} />
-                    </div>
+                    <span className="panel-count">{allTitleResultRows.length} entries</span>
                 </div>
-
-                <div className="vote-summary-card teacher-card">
-                    <div className="vote-summary-header">
-                        <span>Teacher Votes</span>
-                        <strong>{teacherVotes}</strong>
-                    </div>
-                    <div className="vote-summary-meta">
-                        <span>{Math.round(teacherShare)}% of total</span>
-                    </div>
-                    <div className="progress-bar vote-split-bar teacher-split-bar" aria-label="Teacher vote share">
-                        <span style={{ width: `${teacherShare}%` }} />
-                    </div>
+                <div className="leaderboard-table-wrap">
+                    <table className="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th><th>Gender</th><th>Rank</th><th>No.</th><th>Candidate</th>
+                                <th>Student votes</th><th>Teacher votes</th><th>Total vote %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {allTitleResultRows.length === 0 ? (
+                                <tr><td colSpan="8" className="leaderboard-empty">No candidate results available yet.</td></tr>
+                            ) : allTitleResultRows.map((row) => (
+                                <tr key={`${row.title}-${row.candidateName}-${row.candidateNo}`} className={row.rank === 1 ? "result-title-start" : ""}>
+                                    <td><span className="title-table-name result-title-badge">{row.title}</span></td>
+                                    <td>{row.gender}</td><td>{row.rank}</td>
+                                    <td><strong className="candidate-number-cell">{row.candidateNo}</strong></td>
+                                    <td>{row.candidateName}</td>
+                                    <td><strong className="student-vote-count">{row.studentVotes}</strong></td>
+                                    <td><strong className="teacher-vote-count">{row.teacherVotes}</strong></td>
+                                    <td><strong className="total-vote-percentage">{row.totalPercentage.toFixed(1)}%</strong></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            </section>
 
             <div className="vote-split-editor">
                 <div className="split-editor-copy">
                     <p className="dashboard-kicker">Live weighting</p>
                     <h2>Voting influence</h2>
                     <p>Adjust how much student and teacher votes contribute to each title result.</p>
+                    {voteRatio.student === 50 && voteRatio.teacher === 50 && (
+                        <p className="tie-break-note"><i className="fa-solid fa-scale-balanced" aria-hidden="true" /> Equal scores favor the candidate with more teacher votes.</p>
+                    )}
                 </div>
                 <div className="split-control">
                     <label htmlFor="student-ratio">Student share</label>
@@ -902,6 +1038,24 @@ function Dashboard() {
                 <form className="candidate-form" onSubmit={handleSubmit}>
                     <h2>{editingId !== null ? "Edit Candidate" : "Add Candidate"}</h2>
 
+                    {titles.length === 0 && editingId === null && (
+                        <div className="candidate-title-reminder" role="alert">
+                            <div>
+                                <strong>Add a title first</strong>
+                                <span>Candidates must belong to at least one election title before they can be added.</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsTitleDialogOpen(true);
+                                    setError("");
+                                }}
+                            >
+                                Add title
+                            </button>
+                        </div>
+                    )}
+
                     <div className="form-grid">
                         <label>
                             No.
@@ -951,6 +1105,12 @@ function Dashboard() {
                         <input type="file" accept="image/*" onChange={handlePhotoChange} className="photo-input" />
                     </label>
 
+                    <label className="photo-upload">
+                        <span className="photo-upload-title">Gallery photos (optional)</span>
+                        <span className="photo-upload-box"><span className="upload-icon">▧</span><span>{galleryImages.length ? `${galleryImages.length} gallery image(s) selected` : "Add more candidate photos"}</span></span>
+                        <input type="file" accept="image/*" multiple onChange={handleGalleryChange} className="photo-input" />
+                    </label>
+
                     {formData.photo && (
                         <div className="photo-preview-wrap">
                             <img src={resolveImageUrl(formData.photo)} alt="Selected candidate preview" className="candidate-photo preview-photo" />
@@ -958,7 +1118,7 @@ function Dashboard() {
                     )}
 
                     <div className="form-actions">
-                        <button type="submit" className="primary-button">
+                        <button type="submit" className="primary-button" disabled={titles.length === 0 && editingId === null}>
                             {editingId !== null ? "Save Changes" : "Add Candidate"}
                         </button>
 
@@ -1006,16 +1166,14 @@ function Dashboard() {
                                         <div className="section-list">
                                             {sectionCandidates.map((candidate) => {
                                                 const percentage = sectionVotes === 0 ? 0 : (Number(candidate.votes || 0) / sectionVotes) * 100;
-                                                const isLeadingCandidate = leadingCandidate && Number(candidate.id) === Number(leadingCandidate.id);
                                                 const titleList = candidate.titles && candidate.titles.length > 0
                                                     ? candidate.titles
                                                     : (titles || []).filter((title) => title.gender && title.gender.toLowerCase() === candidate.gender?.toLowerCase()).map((title) => title.name);
 
                                                 return (
-                                                    <div className={`candidate-card ${isLeadingCandidate ? "leader-card" : ""}`} key={candidate.id}>
-                                                        {isLeadingCandidate && <div className="leader-crest">Current Leader</div>}
+                                                    <div className="candidate-card" key={candidate.id}>
                                                         <div className="profile-row">
-                                                            <img src={resolveImageUrl(candidate.photo) || "https://images.unsplash.com/photo-1544005313-94ddf0286df2"} alt={candidate.name} className="candidate-photo" />
+                                                            <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} className="candidate-photo" />
                                                             <div className="profile-info">
                                                                 <div className="candidate-name-row">
                                                                     <span className="candidate-no">#{candidate.no ?? "-"}</span>
@@ -1047,7 +1205,7 @@ function Dashboard() {
 
                                                         <div className="candidate-stats">
                                                             <span>{candidate.votes} votes</span>
-                                                            <span className={isLeadingCandidate ? "leader-share" : ""}>{isLeadingCandidate ? "Leader" : "Contestant"}</span>
+                                                            <span>Candidate</span>
                                                         </div>
 
                                                         <div className="progress-bar" aria-label={`${candidate.name} vote progress`}>

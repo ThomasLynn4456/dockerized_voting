@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCurrentStudent, saveStudentSession } from "../utils/studentSession";
+import CandidateGallery from "../components/CandidateGallery";
 
 import "./Boy.css";
 
@@ -267,7 +268,7 @@ function Boy() {
                     <VoteCelebration candidateName={celebration.candidateName} category={celebration.category} />
                   )}
                   <div className="candidate-image-box">
-                    <img src={resolveImageUrl(candidate.photo)} alt={candidate.name} className="candidate-image" />
+                    <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} className="candidate-image" />
                     <span className="candidate-number-badge">No. {candidate.no || (idx + 1)}</span>
                   </div>
 

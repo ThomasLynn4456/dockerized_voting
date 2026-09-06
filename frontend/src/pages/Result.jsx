@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getVoteRatio } from "../utils/voteStore";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import "./Result.css";
+import CandidateGallery from "../components/CandidateGallery";
 
 import logo from "./img/logo1.png";
 
@@ -58,8 +59,19 @@ export default function Result() {
             `${leader.candidateId}:${leader.publishedAt}`,
           ]));
 
+          const getRevealRemaining = (leader) => {
+            const publishedAt = Date.parse(leader.publishedAt);
+            if (!Number.isFinite(publishedAt)) return 0;
+            return Math.max(0, 10000 - (Date.now() - publishedAt));
+          };
+
           if (!initializedResults.current) {
-            setResultLeaders(incomingResults);
+            const initiallyPending = incomingResults.filter((leader) => getRevealRemaining(leader) > 0);
+            setResultLeaders(incomingResults.filter((leader) => !initiallyPending.includes(leader)));
+            if (initiallyPending.length > 0) {
+              setPendingLeaders(initiallyPending);
+              setRevealCountdown(Math.ceil(Math.min(...initiallyPending.map(getRevealRemaining)) / 1000));
+            }
             initializedResults.current = true;
           } else {
             const changedLeaders = incomingResults.filter((leader) =>
@@ -81,7 +93,7 @@ export default function Result() {
                   ...changedLeaders,
                 ];
               });
-              setRevealCountdown(10);
+              setRevealCountdown(Math.ceil(Math.min(...changedLeaders.map(getRevealRemaining)) / 1000));
             }
           }
 
@@ -134,7 +146,6 @@ export default function Result() {
 
   const selectedCandidateId = searchParams.get("candidateId");
   const selectedTitle = searchParams.get("title");
-
   const voteRatio = getVoteRatio();
 
   const getLeaderForCandidate = (candidate) => resultLeaders.find(
@@ -154,13 +165,10 @@ export default function Result() {
     return { student: 0, teacher: 0 };
   };
 
-  const getCandidateWeights = (candidate) => {
-    const leader = selectedTitle
-      ? resultLeaders.find((item) => item.title.toLowerCase() === selectedTitle.toLowerCase())
-      : getLeaderForCandidate(candidate);
-    return leader
-      ? { student: leader.studentWeight, teacher: leader.teacherWeight }
-      : voteRatio;
+  const getCandidateVoteSplitForTitle = (candidate, titleName) => {
+    const student = Number(candidate.titleStudentVoteCounts?.[titleName] ?? candidate.titleStudentVoteCounts?.[titleName.toLowerCase()] ?? 0);
+    const teacher = Number(candidate.titleTeacherVoteCounts?.[titleName] ?? candidate.titleTeacherVoteCounts?.[titleName.toLowerCase()] ?? 0);
+    return { student, teacher };
   };
 
   const getCandidateWeightedScore = (candidate, titleName) => {
@@ -175,16 +183,9 @@ export default function Result() {
       (sum, item) => sum + getCandidateVoteSplitForTitle(item, titleName).teacher, 0
     );
     const votes = getCandidateVoteSplitForTitle(candidate, titleName);
-    const weights = getCandidateWeights(candidate);
-    const studentScore = totalStudentVotes === 0 ? 0 : (votes.student / totalStudentVotes) * weights.student;
-    const teacherScore = totalTeacherVotes === 0 ? 0 : (votes.teacher / totalTeacherVotes) * weights.teacher;
+    const studentScore = totalStudentVotes === 0 ? 0 : (votes.student / totalStudentVotes) * voteRatio.student;
+    const teacherScore = totalTeacherVotes === 0 ? 0 : (votes.teacher / totalTeacherVotes) * voteRatio.teacher;
     return studentScore + teacherScore;
-  };
-
-  const getCandidateVoteSplitForTitle = (candidate, titleName) => {
-    const student = Number(candidate.titleStudentVoteCounts?.[titleName] ?? candidate.titleStudentVoteCounts?.[titleName.toLowerCase()] ?? 0);
-    const teacher = Number(candidate.titleTeacherVoteCounts?.[titleName] ?? candidate.titleTeacherVoteCounts?.[titleName.toLowerCase()] ?? 0);
-    return { student, teacher };
   };
 
   const displayCandidates = selectedCandidateId
@@ -220,7 +221,12 @@ export default function Result() {
         </button>
       </header>
 
-      <main className="page-content" style={{ paddingBottom: "80px" }}>
+      <main className={`page-content ${celebratingTitles.length > 0 ? "winner-celebration-active" : ""}`} style={{ paddingBottom: "80px" }}>
+        {celebratingTitles.length > 0 && (
+          <div className="winner-confetti-field" aria-hidden="true">
+            {Array.from({ length: 14 }, (_, index) => <span key={index} />)}
+          </div>
+        )}
         <section className="page-heading">
           <h1>Voting Results</h1>
           <p>Live leaderboard for the Selected Titles.</p>
@@ -252,7 +258,7 @@ export default function Result() {
               // const voteCount = getCandidateVoteCount(candidate);
               const candidateTitle = selectedTitle || getLeaderForCandidate(candidate)?.title || candidate.category || candidate.titleName || "Candidate";
               const isCelebrating = celebratingTitles.includes(candidateTitle.toLowerCase());
-              const weightedScore = getCandidateWeightedScore(candidate, candidateTitle);
+              const totalVotePercentage = getCandidateWeightedScore(candidate, candidateTitle);
               return (
                 <article className={`candidate-card result-winner-card ${isCelebrating ? "winner-revealed" : ""}`} key={`${candidate.id || idx}-${candidateTitle}`}>
                   <div className="result-winner-badge"><span aria-hidden="true">♛</span> Winner</div>
@@ -262,11 +268,7 @@ export default function Result() {
                     </div>
                   )}
                   <div className="candidate-image-box">
-                    <img
-                      src={resolveImageUrl(candidate.photo || candidate.image)}
-                      alt={candidate.name}
-                      className="candidate-image"
-                    />
+                    <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} className="candidate-image" />
                   </div>
 
                   <h2 className="candidate-name">{candidate.name}</h2>
@@ -289,10 +291,9 @@ export default function Result() {
                         </div>
                       </div>
                       <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 12, color: '#ffe6a3', textAlign: 'right' }}>Weighted score: {weightedScore.toFixed(2)}%</div>
-                        {/* <div style={{ fontSize: 13, color: '#ffe6a3' }}>Weighted score (using configured vote-sharing)</div> */}
+                        <div style={{ fontSize: 12, color: '#ffe6a3', textAlign: 'right' }}>Total vote percentage: {totalVotePercentage.toFixed(2)}%</div>
                         <div style={{ height: 12, background: 'rgba(255,255,255,0.06)', borderRadius: 6, marginTop: 6 }}>
-                          <div style={{ height: 12, background: 'linear-gradient(90deg,#f5cf68,#d99b2d)', width: `${Math.min(100, weightedScore)}%`, borderRadius: 6 }} />
+                          <div style={{ height: 12, background: 'linear-gradient(90deg,#f5cf68,#d99b2d)', width: `${Math.min(100, totalVotePercentage)}%`, borderRadius: 6 }} />
                         </div>
                       </div>
                 </article>

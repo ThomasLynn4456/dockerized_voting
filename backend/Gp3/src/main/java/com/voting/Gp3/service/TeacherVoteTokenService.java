@@ -32,7 +32,7 @@ public class TeacherVoteTokenService {
         TeacherVoteToken entity = new TeacherVoteToken(
                 token,
                 now,
-                now.plusSeconds(900),
+                now.plusSeconds(3 * 60 * 60),
                 "admin",
                 teacherName
         );

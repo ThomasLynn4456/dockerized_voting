@@ -1,0 +1,9 @@
+.git
+.vscode
+**/node_modules
+**/target
+**/dist
+**/.env
+debug.log
+Voting
+

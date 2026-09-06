@@ -37,7 +37,6 @@ public class TitleTableService {
             + "candidate_id BIGINT NOT NULL, "
             + "no INT NOT NULL, "
             + "name VARCHAR(255) NOT NULL, "
-            + "votes INT NOT NULL DEFAULT 0, "
             + "student_votes INT NOT NULL DEFAULT 0, "
             + "teacher_votes INT NOT NULL DEFAULT 0, "
             + "PRIMARY KEY (candidate_id), "
@@ -67,7 +66,7 @@ public class TitleTableService {
 
     public void addCandidate(Title title, Candidate candidate) {
         createTable(title);
-        jdbcTemplate.update("INSERT INTO " + quotedTable(title) + " (candidate_id, no, name, votes) VALUES (?, ?, ?, 0) "
+        jdbcTemplate.update("INSERT INTO " + quotedTable(title) + " (candidate_id, no, name) VALUES (?, ?, ?) "
             + "ON DUPLICATE KEY UPDATE no = VALUES(no), name = VALUES(name)",
             candidate.getId(), candidate.getNo(), candidate.getName());
     }

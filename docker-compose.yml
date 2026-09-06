@@ -1,0 +1,54 @@
+services:
+  database:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-voting_db}
+      MYSQL_USER: ${MYSQL_USER:-voting}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Gp3/Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mysql://database:3306/${MYSQL_DATABASE:-voting_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USERNAME: ${MYSQL_USER:-voting}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      CANDIDATE_IMAGES_DIRECTORY: /data/candidates_images
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      APP_ALLOWED_ORIGIN_PATTERNS: ${APP_ALLOWED_ORIGIN_PATTERNS:-http://localhost,http://127.0.0.1}
+      DEFAULT_ADMIN_NAME: ${DEFAULT_ADMIN_NAME:-Administrator}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@example.com}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Set DEFAULT_ADMIN_PASSWORD in .env}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_API_URL: ${TELEGRAM_API_URL:-https://api.telegram.org}
+    volumes:
+      # Keeps current images available and persists new uploads on the EC2 disk.
+      - ./candidates_images:/data/candidates_images
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

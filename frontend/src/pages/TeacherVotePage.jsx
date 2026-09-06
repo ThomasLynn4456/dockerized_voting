@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import logo from "./img/logo1.png";
 import "./TeacherVotePage.css";
+import CandidateGallery from "../components/CandidateGallery";
 
 const TITLES_API_URL = "/api/titles";
 const CANDIDATES_API_URL = "/api/candidates";
@@ -193,7 +194,7 @@ function TeacherVotePage() {
                                 <article className={`teacher-candidate-card ${isCelebrating ? "celebrating" : ""}`} key={candidate.id}>
                                     {isCelebrating && <div className="teacher-cheer" aria-hidden="true">🎉 ✨ 🎊</div>}
                                     <div className="teacher-candidate-image">
-                                        <img src={resolveImageUrl(candidate.photo)} alt={candidate.name} />
+                                        <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} />
                                         <span>No. {candidate.no || index + 1}</span>
                                     </div>
                                     <h3>{candidate.name}</h3>

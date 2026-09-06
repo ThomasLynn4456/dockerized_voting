@@ -55,6 +55,9 @@ public class Candidate {
     private List<String> titles = new ArrayList<>();
 
     @Transient
+    private List<String> gallery = new ArrayList<>();
+
+    @Transient
     private Map<String, Integer> titleVoteCounts = new HashMap<>();
 
     @Transient
@@ -200,6 +203,9 @@ public class Candidate {
     public List<String> getTitles() {
         return titles;
     }
+
+    public List<String> getGallery() { return gallery; }
+    public void setGallery(List<String> gallery) { this.gallery = gallery == null ? new ArrayList<>() : gallery; }
 
     public void setTitles(List<String> titles) {
         this.titles = titles == null ? new ArrayList<>() : titles;
