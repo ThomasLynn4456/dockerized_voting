@@ -1,0 +1,49 @@
+{
+  "properties": [
+    {
+      "name": "app.candidate-images.directory",
+      "type": "java.lang.String",
+      "description": "Directory used to store candidate image files."
+    },
+    {
+      "name": "app.voting-page-url",
+      "type": "java.lang.String",
+      "description": "Frontend URL used for the voting page."
+    },
+    {
+      "name": "telegram.bot-token",
+      "type": "java.lang.String",
+      "description": "Telegram bot token used for voter verification."
+    },
+    {
+      "name": "telegram.api-url",
+      "type": "java.lang.String",
+      "description": "Telegram API base URL."
+    },
+    {
+      "name": "telegram.otp-message-template",
+      "type": "java.lang.String",
+      "description": "Message template used to send voter OTP codes."
+    },
+    {
+      "name": "app.default-admin.name",
+      "type": "java.lang.String",
+      "description": "Default administrator display name."
+    },
+    {
+      "name": "app.default-admin.email",
+      "type": "java.lang.String",
+      "description": "Default administrator email address."
+    },
+    {
+      "name": "app.default-admin.password",
+      "type": "java.lang.String",
+      "description": "Default administrator password."
+    },
+    {
+      "name": "app.cors.allowed-origin-patterns",
+      "type": "java.lang.String",
+      "description": "Comma-separated CORS origin patterns."
+    }
+  ]
+}

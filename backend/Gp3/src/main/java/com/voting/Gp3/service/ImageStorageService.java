@@ -104,7 +104,10 @@ public class ImageStorageService {
             return;
         }
 
-        String relativePath = imagePath.replaceFirst("^/?candidates_images/", "");
+        String normalizedPath = imagePath.trim().replace('\\', '/');
+        String relativePath = normalizedPath
+            .replaceFirst("^https?://[^/]+/", "")
+            .replaceFirst("^/?(?:api/)?candidates_images/", "");
         Path filePath = imageStorageDirectory.resolve(relativePath).normalize();
 
         try {

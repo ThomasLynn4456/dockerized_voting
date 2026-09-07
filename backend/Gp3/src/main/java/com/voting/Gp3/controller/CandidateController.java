@@ -27,9 +27,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.voting.Gp3.Candidate;
 import com.voting.Gp3.Title;
 import com.voting.Gp3.TitleCandidate;
-import com.voting.Gp3.repository.CandidateRepository;
-import com.voting.Gp3.repository.CandidateImageRepository;
 import com.voting.Gp3.entity.CandidateImage;
+import com.voting.Gp3.repository.CandidateImageRepository;
+import com.voting.Gp3.repository.CandidateRepository;
 import com.voting.Gp3.repository.TitleCandidateRepository;
 import com.voting.Gp3.repository.TitleRepository;
 import com.voting.Gp3.service.ImageStorageService;
@@ -123,7 +123,20 @@ public class CandidateController {
         Map<Long, Candidate> candidateMap = new LinkedHashMap<>();
 
         if (titleTableService != null) {
-            for (Title title : titleRepository.findAll()) {
+            List<Title> allTitles = titleRepository.findAll();
+            for (Candidate candidate : candidateRepository.findAll()) {
+                Candidate existing = candidateMap.computeIfAbsent(candidate.getId(), id -> copyCandidate(candidate));
+                addGallery(existing);
+                for (Title title : allTitles) {
+                    if (title.getGender() != null && candidate.getGender() != null
+                            && title.getGender().equalsIgnoreCase(candidate.getGender())) {
+                        titleTableService.createTable(title);
+                        titleTableService.addCandidate(title, candidate);
+                    }
+                }
+            }
+
+            for (Title title : allTitles) {
                 for (var row : titleTableService.rows(title)) {
                     Long candidateId = ((Number) row.get("candidate_id")).longValue();
                     Candidate candidate = candidateRepository.findById(candidateId).orElse(null);
@@ -131,19 +144,25 @@ public class CandidateController {
 
                     Candidate existing = candidateMap.computeIfAbsent(candidateId, id -> copyCandidate(candidate));
                     addGallery(existing);
-                    existing.getTitles().add(title.getName());
+                    if (!existing.getTitles().contains(title.getName())) {
+                        existing.getTitles().add(title.getName());
+                    }
                     Number votesNum = (Number) row.get("votes");
                     Number studentVotesNum = (Number) row.get("student_votes");
                     Number teacherVotesNum = (Number) row.get("teacher_votes");
                     Number noNum = (Number) row.get("no");
 
-                    existing.getTitleVoteCounts().put(title.getName(), Integer.valueOf(votesNum != null ? votesNum.intValue() : 0));
-                    existing.getTitleStudentVoteCounts().put(title.getName(), Integer.valueOf(studentVotesNum != null ? studentVotesNum.intValue() : 0));
-                    existing.getTitleTeacherVoteCounts().put(title.getName(), Integer.valueOf(teacherVotesNum != null ? teacherVotesNum.intValue() : 0));
+                    existing.getTitleVoteCounts().put(title.getName(), votesNum != null ? votesNum.intValue() : 0);
+                    existing.getTitleStudentVoteCounts().put(title.getName(), studentVotesNum != null ? studentVotesNum.intValue() : 0);
+                    existing.getTitleTeacherVoteCounts().put(title.getName(), teacherVotesNum != null ? teacherVotesNum.intValue() : 0);
                     existing.setCategory(existing.getCategory() == null ? title.getName() : existing.getCategory());
                     existing.setTitleName(existing.getTitleName() == null ? title.getName() : existing.getTitleName());
-                    existing.setNo(existing.getNo() != null ? existing.getNo() : Integer.valueOf(noNum != null ? noNum.intValue() : 0));
-                    existing.setVotes(existing.getVotes() != null ? existing.getVotes() : Integer.valueOf(votesNum != null ? votesNum.intValue() : 0));
+                    if (existing.getNo() == null && noNum != null) {
+                        existing.setNo(noNum.intValue());
+                    }
+                    if (existing.getVotes() == null && votesNum != null) {
+                        existing.setVotes(votesNum.intValue());
+                    }
                 }
             }
             return new ArrayList<>(candidateMap.values());
@@ -170,8 +189,8 @@ public class CandidateController {
                 if (existingVotes == null) {
                     existing.setVotes(linkVotes);
                 } else {
-                    int currentLinkVotes = linkVotes != null ? linkVotes.intValue() : 0;
-                    existing.setVotes(Integer.valueOf(Math.max(existingVotes.intValue(), currentLinkVotes)));
+                    int currentLinkVotes = linkVotes != null ? linkVotes : 0;
+                    existing.setVotes(Math.max(existingVotes, currentLinkVotes));
                 }
             }
         }
@@ -182,7 +201,7 @@ public class CandidateController {
     private void addGallery(Candidate candidate) {
         if (candidateImageRepository == null || candidate == null) return;
         candidate.setGallery(candidateImageRepository.findAllByCandidateOrderByDisplayOrderAscIdAsc(candidate).stream()
-            .map(CandidateImage::getImagePath).toList());
+            .map(image -> image.getImagePath()).toList());
     }
 
     @GetMapping("/candidates/{id}/images")
@@ -190,7 +209,7 @@ public class CandidateController {
         Candidate candidate = candidateRepository.findById(id).orElse(null);
         if (candidate == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(candidateImageRepository.findAllByCandidateOrderByDisplayOrderAscIdAsc(candidate).stream()
-            .map(CandidateImage::getImagePath).toList());
+            .map(image -> image.getImagePath()).toList());
     }
 
     @PostMapping("/candidates/{id}/images")
@@ -343,8 +362,8 @@ public class CandidateController {
                 copy.setTitleName(title.getName());
                 Number candidateNo = (Number) row.get("no");
                 Number candidateVotes = (Number) row.get("votes");
-                copy.setNo(candidateNo == null ? null : Integer.valueOf(candidateNo.intValue()));
-                copy.setVotes(candidateVotes == null ? 0 : Integer.valueOf(candidateVotes.intValue()));
+                copy.setNo(candidateNo == null ? null : candidateNo.intValue());
+                copy.setVotes(candidateVotes == null ? 0 : candidateVotes.intValue());
                 response.add(copy);
             }
         }
@@ -529,6 +548,16 @@ public class CandidateController {
 
         String candidatePhoto = candidate.getPhoto();
 
+        if (candidateImageRepository != null) {
+            List<CandidateImage> galleryRecords = candidateImageRepository
+                .findAllByCandidateOrderByDisplayOrderAscIdAsc(candidate);
+            for (CandidateImage galleryRecord : galleryRecords) {
+                imageStorageService.deleteImage(galleryRecord.getImagePath());
+            }
+            candidateImageRepository.deleteAll(galleryRecords);
+            candidateImageRepository.flush();
+        }
+
         if (titleTableService != null) {
             for (Title title : titleRepository.findAll()) {
                 titleTableService.removeCandidate(title, id);
@@ -540,9 +569,7 @@ public class CandidateController {
         candidateRepository.deleteById(id);
         candidateRepository.flush();
 
-        if (candidatePhoto != null && candidatePhoto.contains("candidates_images/")) {
-            imageStorageService.deleteImage(candidatePhoto);
-        }
+        imageStorageService.deleteImage(candidatePhoto);
 
         return ResponseEntity.noContent().build();
     }

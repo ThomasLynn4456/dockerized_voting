@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS election_settings (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    voting_deadline TIMESTAMP NULL,
+    voting_closed BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

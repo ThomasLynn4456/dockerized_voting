@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import "./Dashboard.css";
 import { getVoteRatio, setVoteRatio } from "../utils/voteStore";
+import { fetchVotingTime, saveVotingTime, formatRemainingTime } from "../utils/votingTime";
 import CandidateGallery from "../components/CandidateGallery";
 
 const API_URL = "/api/candidates";
@@ -10,6 +11,8 @@ const TITLES_API_URL = "/api/titles";
 function Dashboard() {
     const [candidates, setCandidates] = useState([]);
     const [voteRatio, setVoteRatioState] = useState(getVoteRatio());
+    const photoInputRef = useRef(null);
+    const galleryInputRef = useRef(null);
     const [formData, setFormData] = useState({
         no: "",
         name: "",
@@ -24,8 +27,11 @@ function Dashboard() {
     const [isTitleDialogOpen, setIsTitleDialogOpen] = useState(false);
     const [newTitle, setNewTitle] = useState({ name: "", gender: "Male" });
     const [editingId, setEditingId] = useState(null);
+    const [isCandidateModalOpen, setIsCandidateModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [candidateFormError, setCandidateFormError] = useState("");
+    const [candidateFormSuccess, setCandidateFormSuccess] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [selectedFileName, setSelectedFileName] = useState("");
     const [galleryImages, setGalleryImages] = useState([]);
@@ -39,6 +45,11 @@ function Dashboard() {
     const [backendVoteTotals, setBackendVoteTotals] = useState({ student: 0, teacher: 0, total: 0 });
     const [resultLeaders, setResultLeaders] = useState([]);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [votingSchedule, setVotingSchedule] = useState({ deadline: "", isClosed: false, votingClosed: false });
+    const [deadlineInput, setDeadlineInput] = useState("");
+    const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+    const [timerCountdown, setTimerCountdown] = useState(null);
+    const [activePanel, setActivePanel] = useState("overview");
 
     const loadCandidates = async () => {
         try {
@@ -58,13 +69,97 @@ function Dashboard() {
         }
     };
 
+    const loadVotingSchedule = async () => {
+        try {
+            const data = await fetchVotingTime();
+            setVotingSchedule(data);
+            if (data.deadline) {
+                const date = new Date(data.deadline);
+                const pad = (n) => String(n).padStart(2, "0");
+                const localIso = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+                setDeadlineInput(localIso);
+            } else {
+                setDeadlineInput("");
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     useEffect(() => {
         loadCandidates();
         loadTitles();
         loadTeacherTokens();
         loadVoteSummary();
         loadPublishedResults();
+        loadVotingSchedule();
     }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (votingSchedule?.deadline) {
+                const remaining = formatRemainingTime(votingSchedule.deadline);
+                setTimerCountdown(remaining);
+            } else {
+                setTimerCountdown(null);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [votingSchedule]);
+
+    const handleSaveDeadline = async (customIso = null) => {
+        try {
+            setIsSavingSchedule(true);
+            setError("");
+            const targetIso = customIso !== null ? customIso : (deadlineInput ? new Date(deadlineInput).toISOString() : "");
+            const res = await saveVotingTime({ deadline: targetIso, closed: false });
+            setVotingSchedule(res);
+            setSuccessMessage("Voting schedule saved successfully.");
+        } catch (err) {
+            setError(err.message || "Could not save voting schedule.");
+        } finally {
+            setIsSavingSchedule(false);
+        }
+    };
+
+    const handleCloseVotingNow = async () => {
+        const confirmed = window.confirm("Are you sure you want to immediately close student voting? Students will no longer be able to submit votes.");
+        if (!confirmed) return;
+        try {
+            setIsSavingSchedule(true);
+            setError("");
+            const res = await saveVotingTime({ deadline: new Date().toISOString(), closed: true });
+            setVotingSchedule(res);
+            setSuccessMessage("Voting has been closed immediately.");
+        } catch (err) {
+            setError(err.message || "Could not close voting.");
+        } finally {
+            setIsSavingSchedule(false);
+        }
+    };
+
+    const handleClearDeadline = async () => {
+        try {
+            setIsSavingSchedule(true);
+            setError("");
+            const res = await saveVotingTime({ deadline: "", closed: false });
+            setVotingSchedule(res);
+            setDeadlineInput("");
+            setSuccessMessage("Voting deadline removed. Voting is now open without timer.");
+        } catch (err) {
+            setError(err.message || "Could not clear deadline.");
+        } finally {
+            setIsSavingSchedule(false);
+        }
+    };
+
+    const handlePresetTime = (minutes) => {
+        const target = new Date(Date.now() + minutes * 60 * 1000);
+        const pad = (n) => String(n).padStart(2, "0");
+        const localIso = `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(target.getHours())}:${pad(target.getMinutes())}`;
+        setDeadlineInput(localIso);
+        handleSaveDeadline(target.toISOString());
+    };
 
     const loadVoteSummary = async () => {
         try {
@@ -121,6 +216,8 @@ function Dashboard() {
 
     const handleChange = (event) => {
         const { name, value } = event.target;
+        setCandidateFormError("");
+        setCandidateFormSuccess("");
         setFormData((previous) => ({ ...previous, [name]: value }));
     };
 
@@ -358,27 +455,14 @@ function Dashboard() {
         const file = event.target.files?.[0];
 
         if (!file) {
-            setSelectedFileName("");
-            setFormData((previous) => ({ ...previous, photo: "" }));
             return;
         }
 
         const isImage = file.type.startsWith("image/") || /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(file.name);
 
         if (!isImage) {
-            setError("Please choose a valid image file.");
+            setCandidateFormError("Please choose a valid image file.");
             event.target.value = "";
-            setSelectedFileName("");
-            setFormData((previous) => ({ ...previous, photo: "" }));
-            return;
-        }
-
-        const maxSizeInBytes = 20 * 1024 * 1024;
-        if (file.size > maxSizeInBytes) {
-            setError("Please choose an image smaller than 20 MB.");
-            event.target.value = "";
-            setSelectedFileName("");
-            setFormData((previous) => ({ ...previous, photo: "" }));
             return;
         }
 
@@ -386,28 +470,60 @@ function Dashboard() {
 
         const reader = new FileReader();
         reader.onload = () => {
-            setError("");
+            setCandidateFormError("");
             setFormData((previous) => ({ ...previous, photo: reader.result }));
         };
         reader.onerror = () => {
-            setError("Failed to read the selected photo file.");
+            setCandidateFormError("Failed to read the selected photo file.");
         };
         reader.readAsDataURL(file);
     };
 
+    const handleRemoveMainPhoto = () => {
+        setSelectedFileName("");
+        setFormData((previous) => ({ ...previous, photo: "" }));
+        if (photoInputRef.current) {
+            photoInputRef.current.value = "";
+        }
+    };
+
     const handleGalleryChange = (event) => {
         const files = Array.from(event.target.files || []);
-        if (files.some((file) => !file.type.startsWith("image/") || file.size > 20 * 1024 * 1024)) {
-            setError("Gallery images must be valid image files smaller than 20 MB each.");
+        if (files.length === 0) return;
+
+        const invalidFile = files.find((file) => !file.type.startsWith("image/") && !/\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(file.name));
+        if (invalidFile) {
+            setCandidateFormError("Gallery images must be valid image files.");
             event.target.value = "";
             return;
         }
+
         Promise.all(files.map((file) => new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
             reader.readAsDataURL(file);
-        }))).then(setGalleryImages).catch(() => setError("Failed to read gallery images."));
+        }))).then((newImages) => {
+            setCandidateFormError("");
+            setGalleryImages((prev) => [...prev, ...newImages]);
+        }).catch(() => setCandidateFormError("Failed to read gallery images."));
+    };
+
+    const handleRemoveGalleryImage = (indexToRemove) => {
+        setGalleryImages((previous) => {
+            const next = previous.filter((_, idx) => idx !== indexToRemove);
+            if (next.length === 0 && galleryInputRef.current) {
+                galleryInputRef.current.value = "";
+            }
+            return next;
+        });
+    };
+
+    const handleClearAllGallery = () => {
+        setGalleryImages([]);
+        if (galleryInputRef.current) {
+            galleryInputRef.current.value = "";
+        }
     };
 
     const resetForm = () => {
@@ -424,6 +540,15 @@ function Dashboard() {
         });
         setSelectedFileName("");
         setEditingId(null);
+        setIsCandidateModalOpen(false);
+        setCandidateFormError("");
+        setCandidateFormSuccess("");
+        if (photoInputRef.current) {
+            photoInputRef.current.value = "";
+        }
+        if (galleryInputRef.current) {
+            galleryInputRef.current.value = "";
+        }
     };
 
     const loadTeacherTokens = async () => {
@@ -473,12 +598,12 @@ function Dashboard() {
         const candidateNo = Number(formData.no) || 0;
 
         if (!candidateName) {
-            setError("Candidate name is required.");
+            setCandidateFormError("Candidate name is required.");
             return;
         }
 
         if (candidateNo < 1) {
-            setError("Please enter a candidate number.");
+            setCandidateFormError("Please enter a candidate number.");
             return;
         }
 
@@ -488,7 +613,7 @@ function Dashboard() {
             && String(candidate.gender).toLowerCase() === formData.gender.toLowerCase()
         );
         if (duplicateNumber) {
-            setError(`Candidate number ${candidateNo} already exists for ${formData.gender} candidates.`);
+            setCandidateFormError(`Candidate number ${candidateNo} already exists for ${formData.gender} candidates.`);
             return;
         }
 
@@ -497,7 +622,7 @@ function Dashboard() {
             .map((title) => title.name);
 
         if (categoriesForGender.length === 0) {
-            setError(`Please add at least one ${formData.gender.toLowerCase()} title first.`);
+            setCandidateFormError(`Please add at least one ${formData.gender.toLowerCase()} title first.`);
             return;
         }
 
@@ -557,14 +682,17 @@ function Dashboard() {
             }
 
             const successText = editingId !== null ? "Candidate updated successfully." : "Candidate uploaded successfully.";
-            resetForm();
-            setSuccessMessage(successText);
+            setCandidateFormError("");
+            setCandidateFormSuccess(successText);
             setError("");
             await loadCandidates();
+            if (editingId === null) {
+                resetForm();
+            }
         } catch (submitError) {
             console.error("Candidate save failed:", submitError);
-            setSuccessMessage("");
-            setError(submitError.message || "Something went wrong while saving the candidate.");
+            setCandidateFormSuccess("");
+            setCandidateFormError(submitError.message || "Something went wrong while saving the candidate.");
         }
     };
 
@@ -580,6 +708,20 @@ function Dashboard() {
             bio: candidate.bio || "",
             photo: candidate.photo || "",
         });
+        setSelectedFileName("");
+        setGalleryImages([]);
+        setIsCandidateModalOpen(true);
+        setCandidateFormError("");
+        setCandidateFormSuccess("");
+        setError("");
+    };
+
+    const handleOpenAddCandidate = () => {
+        resetForm();
+        setIsCandidateModalOpen(true);
+        setCandidateFormError("");
+        setCandidateFormSuccess("");
+        setError("");
     };
 
     const handleDelete = async (candidateId) => {
@@ -734,6 +876,7 @@ function Dashboard() {
                 loadTeacherTokens(),
                 loadVoteSummary(),
                 loadPublishedResults(),
+                loadVotingSchedule(),
             ]);
         } finally {
             setIsRefreshing(false);
@@ -763,29 +906,6 @@ function Dashboard() {
                 </div>
             </div>
 
-            {error && (
-                <div className="dashboard-error-popup-backdrop">
-                    <div className="dashboard-error-popup" role="alertdialog" aria-modal="true" aria-labelledby="dashboard-error-title">
-                        <span className="dashboard-error-popup-icon" aria-hidden="true">
-                            <i className="fa-solid fa-triangle-exclamation" />
-                        </span>
-                        <div>
-                            <h2 id="dashboard-error-title">Something needs your attention</h2>
-                            <p>{error}</p>
-                        </div>
-                        <button type="button" className="primary-button" onClick={() => setError("")} autoFocus>OK</button>
-                    </div>
-                </div>
-            )}
-
-            {successMessage && (
-                <div className="dashboard-notice success" role="status">
-                    <i className="fa-solid fa-circle-check" aria-hidden="true" />
-                    <span>{successMessage}</span>
-                    <button type="button" onClick={() => { setError(""); setSuccessMessage(""); }} aria-label="Dismiss notification">×</button>
-                </div>
-            )}
-
             <div className="dashboard-overview-grid">
                 <div className="overview-card"><span>Total votes</span><strong>{studentVotes + teacherVotes}</strong><small>Across all voters</small></div>
                 <div className="overview-card"><span>Candidates</span><strong>{candidates.length}</strong><small>Male and female</small></div>
@@ -793,7 +913,53 @@ function Dashboard() {
                 <div className="overview-card"><span>Published winners</span><strong>{resultLeaders.length}</strong><small>Visible on results</small></div>
             </div>
 
-            <section className="leaderboard-panel">
+            <div className="dashboard-workspace">
+                <aside className="dashboard-sidebar" aria-label="Dashboard sections">
+                    <div className="dashboard-sidebar-brand">
+                        <span className="dashboard-brand-mark"><i className="fa-solid fa-landmark" aria-hidden="true" /></span>
+                        <div><strong>Election admin</strong><small>Control center</small></div>
+                    </div>
+                    <p className="dashboard-nav-label">Workspace</p>
+                    <nav className="dashboard-nav">
+                        {[
+                            ["overview", "Overview", "fa-chart-line"],
+                            ["candidates", "Candidates", "fa-users"],
+                            ["titles", "Election titles", "fa-list-check"],
+                            ["schedule", "Voting schedule", "fa-calendar-days"],
+                            ["weights", "Vote weighting", "fa-scale-balanced"],
+                            ["teachers", "Teacher access", "fa-qrcode"],
+                        ].map(([panel, label, icon]) => (
+                            <button
+                                type="button"
+                                key={panel}
+                                className={`dashboard-nav-item ${activePanel === panel ? "is-active" : ""}`}
+                                onClick={() => setActivePanel(panel)}
+                                aria-current={activePanel === panel ? "page" : undefined}
+                            >
+                                <i className={`fa-solid ${icon}`} aria-hidden="true" />
+                                <span>{label}</span>
+                                {panel === "candidates" && <small>{candidates.length}</small>}
+                                {panel === "titles" && <small>{titles.length}</small>}
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="dashboard-sidebar-footer">
+                        <span className="live-dot" aria-hidden="true" />
+                        <div><small>System status</small><strong>All systems live</strong></div>
+                    </div>
+                </aside>
+
+                <main className="dashboard-content">
+                    <div className="dashboard-content-heading">
+                        <div>
+                            <p className="dashboard-kicker">{activePanel === "overview" ? "At a glance" : "Workspace"}</p>
+                            <h2>{activePanel === "overview" ? "Election overview" : activePanel === "candidates" ? "Candidate management" : activePanel === "titles" ? "Election titles" : activePanel === "schedule" ? "Voting schedule" : activePanel === "weights" ? "Vote weighting" : "Teacher voting access"}</h2>
+                        </div>
+                        <span className="dashboard-content-meta">Updated just now</span>
+                    </div>
+
+                    {activePanel === "overview" && <>
+                    <section className="leaderboard-panel">
                 <div className="panel-heading-row">
                     <div>
                         <p className="dashboard-kicker">Title Leaderboard</p>
@@ -852,9 +1018,9 @@ function Dashboard() {
                         </tbody>
                     </table>
                 </div>
-            </section>
+                    </section>
 
-            <section className="leaderboard-panel all-results-panel">
+                    <section className="leaderboard-panel all-results-panel">
                 <div className="panel-heading-row">
                     <div>
                         <p className="dashboard-kicker">Complete Results</p>
@@ -887,9 +1053,10 @@ function Dashboard() {
                         </tbody>
                     </table>
                 </div>
-            </section>
+                    </section>
+                    </>}
 
-            <div className="vote-split-editor">
+                {activePanel === "weights" && <div className="vote-split-editor">
                 <div className="split-editor-copy">
                     <p className="dashboard-kicker">Live weighting</p>
                     <h2>Voting influence</h2>
@@ -913,9 +1080,92 @@ function Dashboard() {
                         <strong>{voteRatio.teacher}%</strong>
                     </div>
                 </div>
-            </div>
+            </div>}
 
-            <div className="teacher-token-panel">
+            {activePanel === "schedule" && <div className="voting-schedule-panel">
+                <div className="voting-schedule-header">
+                    <div>
+                        <p className="dashboard-kicker">Election Schedule</p>
+                        <h2>Voting Deadline & Timer</h2>
+                        <p className="dashboard-subtitle" style={{ margin: "4px 0 0" }}>
+                            Set an automatic timer after which student votes will be disabled across all categories.
+                        </p>
+                    </div>
+                    <div className={`voting-status-badge ${votingSchedule?.isClosed ? "is-closed" : (votingSchedule?.deadline ? "is-scheduled" : "is-open")}`}>
+                        <span className="status-indicator-dot" />
+                        {votingSchedule?.isClosed
+                            ? "Voting Closed"
+                            : (votingSchedule?.deadline
+                                ? `Active · Closes in ${timerCountdown?.text || "calculating..."}`
+                                : "Open (No Deadline Set)")}
+                    </div>
+                </div>
+
+                <div className="voting-schedule-body">
+                    <div className="voting-schedule-controls">
+                        <div className="voting-schedule-input-group">
+                            <label htmlFor="voting-deadline-picker">
+                                Set Closing Date & Time
+                            </label>
+                            <input
+                                id="voting-deadline-picker"
+                                type="datetime-local"
+                                value={deadlineInput}
+                                onChange={(e) => setDeadlineInput(e.target.value)}
+                                className="voting-deadline-input"
+                            />
+                        </div>
+
+                        <div className="schedule-preset-buttons">
+                            <span className="schedule-preset-label">Quick presets:</span>
+                            <button type="button" className="preset-btn" onClick={() => handlePresetTime(15)}>+15 min</button>
+                            <button type="button" className="preset-btn" onClick={() => handlePresetTime(30)}>+30 min</button>
+                            <button type="button" className="preset-btn" onClick={() => handlePresetTime(60)}>+1 hour</button>
+                            <button type="button" className="preset-btn" onClick={() => handlePresetTime(120)}>+2 hours</button>
+                            <button type="button" className="preset-btn" onClick={() => handlePresetTime(360)}>+6 hours</button>
+                            <button type="button" className="preset-btn" onClick={() => handlePresetTime(1440)}>+24 hours</button>
+                        </div>
+                    </div>
+
+                    <div className="voting-schedule-actions">
+                        <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() => handleSaveDeadline()}
+                            disabled={isSavingSchedule || !deadlineInput}
+                        >
+                            <i className="fa-solid fa-clock" aria-hidden="true" />
+                            {isSavingSchedule ? "Saving..." : "Save Deadline"}
+                        </button>
+
+                        <button
+                            type="button"
+                            className="delete-button"
+                            onClick={handleCloseVotingNow}
+                            disabled={isSavingSchedule || votingSchedule?.isClosed}
+                            title="Immediately disable voting for all students"
+                        >
+                            <i className="fa-solid fa-lock" aria-hidden="true" />
+                            Close Voting Now
+                        </button>
+
+                        {(votingSchedule?.deadline || votingSchedule?.isClosed) && (
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={handleClearDeadline}
+                                disabled={isSavingSchedule}
+                                title="Remove deadline and reopen voting"
+                            >
+                                <i className="fa-solid fa-unlock" aria-hidden="true" />
+                                Reopen / Clear Timer
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>}
+
+            {activePanel === "teachers" && <div className="teacher-token-panel">
                 <div className="teacher-token-header">
                     <div>
                         <p className="dashboard-kicker">Teacher Voting Access</p>
@@ -974,9 +1224,9 @@ function Dashboard() {
                         </div>
                     </div>
                 )}
-            </div>
+            </div>}
 
-            <div className="dashboard-layout">
+            {activePanel === "candidates" && <div className="dashboard-layout">
                 <div className="title-category-box dashboard-workspace-card">
                     <div className="title-category-header">
                         <div>
@@ -1033,103 +1283,199 @@ function Dashboard() {
                             </div>
                         </div>
                     )}
+
+                    <div className="dashboard-add-candidate-trigger">
+                        <button type="button" className="primary-button add-candidate-trigger-btn" onClick={handleOpenAddCandidate}>
+                            <i className="fa-solid fa-user-plus" aria-hidden="true" /> Add New Candidate
+                        </button>
+                    </div>
                 </div>
 
-                <form className="candidate-form" onSubmit={handleSubmit}>
-                    <h2>{editingId !== null ? "Edit Candidate" : "Add Candidate"}</h2>
-
-                    {titles.length === 0 && editingId === null && (
-                        <div className="candidate-title-reminder" role="alert">
-                            <div>
-                                <strong>Add a title first</strong>
-                                <span>Candidates must belong to at least one election title before they can be added.</span>
+                {isCandidateModalOpen && (
+                    <div className="candidate-modal-backdrop" role="presentation" onMouseDown={() => resetForm()}>
+                        <div
+                            className="candidate-modal-dialog"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="candidate-modal-title"
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            <div className="candidate-modal-header">
+                                <h2 id="candidate-modal-title">{editingId !== null ? "Edit Candidate" : "Add Candidate"}</h2>
+                                <button type="button" className="candidate-modal-close" onClick={resetForm} aria-label="Close modal">
+                                    ×
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsTitleDialogOpen(true);
-                                    setError("");
-                                }}
-                            >
-                                Add title
-                            </button>
+
+                            <form className="candidate-form-modal" onSubmit={handleSubmit}>
+                                {titles.length === 0 && editingId === null && (
+                                    <div className="candidate-title-reminder" role="alert">
+                                        <div>
+                                            <strong>Add a title first</strong>
+                                            <span>Candidates must belong to at least one election title before they can be added.</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsTitleDialogOpen(true);
+                                                setIsCandidateModalOpen(false);
+                                                setError("");
+                                            }}
+                                        >
+                                            Add title
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="form-grid">
+                                    <label>
+                                        No.
+                                        <input type="number" name="no" value={formData.no} onChange={handleChange} placeholder="1" min="1" />
+                                    </label>
+
+                                    <label>
+                                        Name
+                                        <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Enter candidate name" required />
+                                    </label>
+
+                                    <label>
+                                        Gender
+                                        <select name="gender" value={formData.gender} onChange={handleChange}>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                        </select>
+                                    </label>
+
+                                    <label>
+                                        Age
+                                        <input type="number" name="age" value={formData.age} onChange={handleChange} placeholder="Enter Age" min="18" max="30" required />
+                                    </label>
+
+                                    <label>
+                                        Major
+                                        <input type="text" name="major" value={formData.major} onChange={handleChange} placeholder="Enter Major" required />
+                                    </label>
+
+                                    <label>
+                                        Talent
+                                        <input type="text" name="talent" value={formData.talent} onChange={handleChange} placeholder="Enter Talent" required />
+                                    </label>
+                                </div>
+
+                                <label>
+                                    Bio
+                                    <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Bio..." rows="3" />
+                                </label>
+
+                                <label className="photo-upload">
+                                    <span className="photo-upload-title">Photo (all image types)</span>
+                                    <span className="photo-upload-box">
+                                        <span className="upload-icon">⇪</span>
+                                        <span>{selectedFileName || (formData.photo ? "Change photo" : "Upload candidate photo")}</span>
+                                    </span>
+                                    <input
+                                        ref={photoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                        className="photo-input"
+                                    />
+                                </label>
+
+                                <label className="photo-upload">
+                                    <span className="photo-upload-title">Gallery photos (optional)</span>
+                                    <span className="photo-upload-box">
+                                        <span className="upload-icon">▧</span>
+                                        <span>{galleryImages.length ? `${galleryImages.length} gallery photo(s) selected` : "Add more candidate photos"}</span>
+                                    </span>
+                                    <input
+                                        ref={galleryInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleGalleryChange}
+                                        className="photo-input"
+                                    />
+                                </label>
+
+                                {formData.photo && (
+                                    <div className="photo-preview-wrap">
+                                        <div className="photo-preview-header">
+                                            <span className="photo-preview-label">Main Photo Preview</span>
+                                            <button
+                                                type="button"
+                                                className="photo-cancel-button"
+                                                onClick={handleRemoveMainPhoto}
+                                                title="Remove main photo"
+                                            >
+                                                <i className="fa-solid fa-trash-can" aria-hidden="true" /> Remove photo
+                                            </button>
+                                        </div>
+                                        <img src={resolveImageUrl(formData.photo)} alt="Selected candidate preview" className="candidate-photo preview-photo" />
+                                    </div>
+                                )}
+
+                                {galleryImages.length > 0 && (
+                                    <div className="gallery-staging-wrap">
+                                        <div className="photo-preview-header">
+                                            <span className="photo-preview-label">Selected Gallery Photos ({galleryImages.length})</span>
+                                            <button
+                                                type="button"
+                                                className="photo-cancel-button"
+                                                onClick={handleClearAllGallery}
+                                                title="Remove all gallery photos"
+                                            >
+                                                <i className="fa-solid fa-trash-can" aria-hidden="true" /> Clear all
+                                            </button>
+                                        </div>
+                                        <div className="gallery-staging-grid">
+                                            {galleryImages.map((imageSrc, index) => (
+                                                <div key={index} className="gallery-staging-item">
+                                                    <img src={imageSrc} alt={`Gallery selection ${index + 1}`} className="gallery-staging-thumb" />
+                                                    <button
+                                                        type="button"
+                                                        className="gallery-staging-remove"
+                                                        onClick={() => handleRemoveGalleryImage(index)}
+                                                        title="Remove this photo"
+                                                        aria-label={`Remove photo ${index + 1}`}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="form-actions">
+                                    <button type="submit" className="primary-button" disabled={titles.length === 0 && editingId === null}>
+                                        {editingId !== null ? "Save Changes" : "Add Candidate"}
+                                    </button>
+
+                                    <button type="button" className="secondary-button" onClick={resetForm}>
+                                        Cancel
+                                    </button>
+                                </div>
+
+                                {candidateFormError && (
+                                    <div className="candidate-form-error" role="alert">
+                                        <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                                        <span>{candidateFormError}</span>
+                                        <button type="button" onClick={() => setCandidateFormError("")} aria-label="Dismiss candidate form error">×</button>
+                                    </div>
+                                )}
+
+                                {candidateFormSuccess && (
+                                    <div className="candidate-form-success" role="status">
+                                        <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                                        <span>{candidateFormSuccess}</span>
+                                        <button type="button" onClick={() => setCandidateFormSuccess("")} aria-label="Dismiss candidate form success">×</button>
+                                    </div>
+                                )}
+                            </form>
                         </div>
-                    )}
-
-                    <div className="form-grid">
-                        <label>
-                            No.
-                            <input type="number" name="no" value={formData.no} onChange={handleChange} placeholder="1" min="1" />
-                        </label>
-
-                        <label>
-                            Name
-                            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Enter candidate name" required />
-                        </label>
-
-                        <label>
-                            Gender
-                            <select name="gender" value={formData.gender} onChange={handleChange}>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                            </select>
-                        </label>
-
-                        <label>
-                            Age
-                            <input type="number" name="age" value={formData.age} onChange={handleChange} placeholder="Enter Age" min="18" max="30" required />
-                        </label>
-
-                        <label>
-                            Major
-                            <input type="text" name="major" value={formData.major} onChange={handleChange} placeholder="Enter Major" required />
-                        </label>
-
-                        <label>
-                            Talent
-                            <input type="text" name="talent" value={formData.talent} onChange={handleChange} placeholder="Enter Talent" required />
-                        </label>
                     </div>
-
-                    <label>
-                        Bio
-                        <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Bio..." rows="3" />
-                    </label>
-
-                    <label className="photo-upload">
-                        <span className="photo-upload-title">Photo (all image types)</span>
-                        <span className="photo-upload-box">
-                            <span className="upload-icon">⇪</span>
-                            <span>{selectedFileName || (formData.photo ? "Change photo" : "Upload candidate photo")}</span>
-                        </span>
-                        <input type="file" accept="image/*" onChange={handlePhotoChange} className="photo-input" />
-                    </label>
-
-                    <label className="photo-upload">
-                        <span className="photo-upload-title">Gallery photos (optional)</span>
-                        <span className="photo-upload-box"><span className="upload-icon">▧</span><span>{galleryImages.length ? `${galleryImages.length} gallery image(s) selected` : "Add more candidate photos"}</span></span>
-                        <input type="file" accept="image/*" multiple onChange={handleGalleryChange} className="photo-input" />
-                    </label>
-
-                    {formData.photo && (
-                        <div className="photo-preview-wrap">
-                            <img src={resolveImageUrl(formData.photo)} alt="Selected candidate preview" className="candidate-photo preview-photo" />
-                        </div>
-                    )}
-
-                    <div className="form-actions">
-                        <button type="submit" className="primary-button" disabled={titles.length === 0 && editingId === null}>
-                            {editingId !== null ? "Save Changes" : "Add Candidate"}
-                        </button>
-
-                        {editingId !== null && (
-                            <button type="button" className="secondary-button" onClick={resetForm}>
-                                Cancel
-                            </button>
-                        )}
-                    </div>
-
-                </form>
+                )}
 
                 <div className="sections-panel">
                     {loading ? (
@@ -1164,61 +1510,36 @@ function Dashboard() {
                                         <p className="empty-section">No candidates in this section yet.</p>
                                     ) : (
                                         <div className="section-list">
-                                            {sectionCandidates.map((candidate) => {
-                                                const percentage = sectionVotes === 0 ? 0 : (Number(candidate.votes || 0) / sectionVotes) * 100;
-                                                const titleList = candidate.titles && candidate.titles.length > 0
-                                                    ? candidate.titles
-                                                    : (titles || []).filter((title) => title.gender && title.gender.toLowerCase() === candidate.gender?.toLowerCase()).map((title) => title.name);
-
-                                                return (
-                                                    <div className="candidate-card" key={candidate.id}>
-                                                        <div className="profile-row">
-                                                            <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} className="candidate-photo" />
-                                                            <div className="profile-info">
-                                                                <div className="candidate-name-row">
-                                                                    <span className="candidate-no">#{candidate.no ?? "-"}</span>
-                                                                    <h3>{candidate.name}</h3>
-                                                                </div>
-                                                                <p className="candidate-meta">{candidate.gender} • {candidate.age} yrs • {candidate.major}</p>
-                                                                <p className="candidate-meta">Talent: {candidate.talent}</p>
-                                                                <p className="candidate-bio">{candidate.bio}</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="candidate-titles-row" style={{ display: "flex", flexWrap: "wrap", gap: "8px", margin: "12px 0" }}>
-                                                            {titleList.map((title) => (
-                                                                <span key={`${candidate.id}-${title}`} className="candidate-title-chip" style={{
-                                                                    padding: "6px 10px",
-                                                                    borderRadius: "999px",
-                                                                    background: "rgba(255, 227, 150, 0.16)",
-                                                                    color: "#ffe7a3",
-                                                                    border: "1px solid rgba(255,227,150,0.4)",
-                                                                    fontSize: "12px",
-                                                                    fontWeight: "700",
-                                                                    letterSpacing: "0.04em",
-                                                                    textTransform: "uppercase"
-                                                                }}>
-                                                                    {title} • S:{Number(candidate.titleStudentVoteCounts?.[title] ?? 0)} T:{Number(candidate.titleTeacherVoteCounts?.[title] ?? 0)}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-
-                                                        <div className="candidate-stats">
-                                                            <span>{candidate.votes} votes</span>
-                                                            <span>Candidate</span>
-                                                        </div>
-
-                                                        <div className="progress-bar" aria-label={`${candidate.name} vote progress`}>
-                                                            <span style={{ width: `${percentage}%` }} />
-                                                        </div>
-
-                                                        <div className="candidate-actions">
-                                                            <button type="button" className="edit-button" onClick={() => handleEdit(candidate)}>Edit</button>
-                                                            <button type="button" className="delete-button" onClick={() => handleDelete(candidate.id)}>Delete</button>
-                                                        </div>
+                                            {sectionCandidates.map((candidate, idx) => (
+                                                <article className="candidate-card dashboard-candidate-card" key={candidate.id}>
+                                                    <div className="candidate-image-box">
+                                                        <CandidateGallery candidate={candidate} resolveImageUrl={resolveImageUrl} className="candidate-image" />
+                                                        <span className="candidate-number-badge">No. {candidate.no || (idx + 1)}</span>
                                                     </div>
-                                                );
-                                            })}
+
+                                                    <h2 className="candidate-name">{candidate.name}</h2>
+
+                                                    <div className="candidate-info-grid">
+                                                        <div className="candidate-info-box"><span>No.</span><strong>{candidate.no || (idx + 1)}</strong></div>
+                                                        <div className="candidate-info-box"><span>Age</span><strong>{candidate.age || "-"}</strong></div>
+                                                        <div className="candidate-info-box"><span>Major</span><strong>{candidate.major || "-"}</strong></div>
+                                                        <div className="candidate-info-box"><span>Talent</span><strong>{candidate.talent || "-"}</strong></div>
+                                                    </div>
+
+                                                    {candidate.bio && (
+                                                        <p className="candidate-bio-text">{candidate.bio}</p>
+                                                    )}
+
+                                                    <div className="candidate-actions">
+                                                        <button type="button" className="edit-button" onClick={() => handleEdit(candidate)}>
+                                                            <i className="fa-solid fa-pen-to-square" aria-hidden="true" /> Edit
+                                                        </button>
+                                                        <button type="button" className="delete-button" onClick={() => handleDelete(candidate.id)}>
+                                                            <i className="fa-solid fa-trash-can" aria-hidden="true" /> Delete
+                                                        </button>
+                                                    </div>
+                                                </article>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
@@ -1226,7 +1547,43 @@ function Dashboard() {
                         })
                     )}
                 </div>
+            </div>}
+
+            {activePanel === "titles" && <div className="title-category-box dashboard-workspace-card dashboard-titles-view">
+                <div className="title-category-header">
+                    <div><span>Title categories</span><small>{titles.length} configured</small></div>
+                    <button type="button" className="add-title-button" onClick={() => { setIsTitleDialogOpen(true); setError(""); }}>+ Add Title</button>
+                </div>
+                {titles.length === 0 ? <p className="empty-title-message">No titles added yet.</p> : <div className="title-category-grid">
+                    {titles.map((title) => <div key={title.id} className="title-option selected"><div className="title-option-text"><span>{title.name}</span><small>{title.gender}</small></div><button type="button" className="remove-title-button" onClick={() => handleDeleteTitle(title)} aria-label={`Remove ${title.name}`}>×</button></div>)}
+                </div>}
+                {isTitleDialogOpen && <div className="add-title-form">
+                    <label>Title<input type="text" value={newTitle.name} onChange={(event) => setNewTitle((previous) => ({ ...previous, name: event.target.value }))} placeholder="e.g. King" autoFocus /></label>
+                    <fieldset><legend>Title gender</legend><label className="gender-choice"><input type="radio" name="titles-view-gender" value="Male" checked={newTitle.gender === "Male"} onChange={(event) => setNewTitle((previous) => ({ ...previous, gender: event.target.value }))} />Male</label><label className="gender-choice"><input type="radio" name="titles-view-gender" value="Female" checked={newTitle.gender === "Female"} onChange={(event) => setNewTitle((previous) => ({ ...previous, gender: event.target.value }))} />Female</label></fieldset>
+                    <div className="title-form-actions"><button type="button" className="primary-button" onClick={handleAddTitle}>Add</button><button type="button" className="secondary-button" onClick={() => setIsTitleDialogOpen(false)}>Cancel</button></div>
+                </div>}
+            </div>}
+                </main>
             </div>
+
+            {(error || successMessage) && (
+                <div className="dashboard-bottom-notifications" aria-live="polite">
+                    {error && (
+                        <div className="dashboard-notice error" role="alert">
+                            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                            <span>{error}</span>
+                            <button type="button" onClick={() => setError("")} aria-label="Dismiss error">×</button>
+                        </div>
+                    )}
+                    {successMessage && (
+                        <div className="dashboard-notice success" role="status">
+                            <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                            <span>{successMessage}</span>
+                            <button type="button" onClick={() => setSuccessMessage("")} aria-label="Dismiss success message">×</button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

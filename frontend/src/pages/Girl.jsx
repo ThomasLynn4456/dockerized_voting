@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCurrentStudent, saveStudentSession } from "../utils/studentSession";
+import { fetchVotingTime, formatRemainingTime } from "../utils/votingTime";
 import CandidateGallery from "../components/CandidateGallery";
 
 import "./Girl.css";
@@ -76,10 +77,13 @@ function Girl() {
   const navigate = useNavigate();
   const [student, setStudent] = useState(null);
   const [candidatesList, setCandidatesList] = useState([]);
+  const [titlesList, setTitlesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSparkle, setActiveSparkle] = useState({ key: "", id: 0 });
   const [celebration, setCelebration] = useState(null);
   const [alert, setAlert] = useState({ visible: false, type: "success", message: "" });
+  const [votingSchedule, setVotingSchedule] = useState({ deadline: "", isClosed: false });
+  const [countdown, setCountdown] = useState(null);
   const sparkleTimer = useRef(null);
   const celebrationTimer = useRef(null);
   const sparkleCounter = useRef(0);
@@ -94,13 +98,30 @@ function Girl() {
       setStudent(currentStudent);
 
       try {
-        const response = await fetch("/api/candidates");
-        if (response.ok) {
-          const data = await response.json();
+        const [candRes, titlesRes, timeData] = await Promise.all([
+          fetch("/api/candidates"),
+          fetch("/api/titles"),
+          fetchVotingTime()
+        ]);
+        if (candRes.ok) {
+          const data = await candRes.json();
           const femaleCandidates = (data || []).filter(
             (c) => c.gender && c.gender.toLowerCase() === "female"
           );
           setCandidatesList(femaleCandidates);
+        }
+        if (titlesRes.ok) {
+          const titlesData = await titlesRes.json();
+          const femaleTitles = (titlesData || [])
+            .filter((t) => t.gender && t.gender.toLowerCase() === "female")
+            .map((t) => t.name);
+          setTitlesList(femaleTitles);
+        }
+        if (timeData) {
+          setVotingSchedule(timeData);
+          if (timeData.deadline) {
+            setCountdown(formatRemainingTime(timeData.deadline));
+          }
         }
       } catch (err) {
         console.error("Could not load backend candidates:", err);
@@ -115,6 +136,19 @@ function Girl() {
       window.clearTimeout(celebrationTimer.current);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (!votingSchedule?.deadline) return;
+    const interval = setInterval(() => {
+      const remaining = formatRemainingTime(votingSchedule.deadline);
+      setCountdown(remaining);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [votingSchedule]);
+
+  const isVotingClosed = Boolean(
+    votingSchedule?.votingClosed || votingSchedule?.isClosed || (countdown && countdown.expired)
+  );
 
   const resolveImageUrl = (photoValue) => {
     if (!photoValue) {
@@ -143,12 +177,18 @@ function Girl() {
 
   const selectCategory = async (candidate, category) => {
     setAlert({ visible: false, type: "success", message: "" });
+
+    if (isVotingClosed) {
+      showAlert("error", "Voting period has ended! You can still browse all candidate information.");
+      return;
+    }
+
     const titleName = category;
     const isAlreadyVoted = student?.votedTitles?.some(
       (t) => t.toLowerCase() === titleName.toLowerCase()
     );
 
-    if (student?.hasVoted || isAlreadyVoted) {
+    if (isAlreadyVoted) {
       showAlert("error", `You have already voted in title: ${titleName}!`);
       return;
     }
@@ -237,12 +277,28 @@ function Girl() {
           <span className="page-kicker">Student ballot · Female division</span>
           <h1>Girl Candidates</h1>
           <p>Vote for the freshers who best represent Queen, Style, and Popular.</p>
-          {student && (
-            <div className="student-pill">
-              <span className="student-pill-dot" aria-hidden="true" />
-              Voting as <strong>{student.username}</strong><span>{student.major}</span>
-            </div>
-          )}
+
+          <div className="heading-badges-row">
+            {student && (
+              <div className="student-pill">
+                <span className="student-pill-dot" aria-hidden="true" />
+                Voting as <strong>{student.username}</strong><span>{student.major}</span>
+              </div>
+            )}
+
+            {isVotingClosed ? (
+              <div className="voting-time-pill is-closed">
+                <i className="fa-solid fa-lock" aria-hidden="true" />
+                <span>Voting Closed</span>
+              </div>
+            ) : votingSchedule?.deadline && countdown && !countdown.expired ? (
+              <div className="voting-time-pill is-active">
+                <i className="fa-solid fa-clock" aria-hidden="true" />
+                <span>Closes in: <strong>{countdown.text}</strong></span>
+              </div>
+            ) : null}
+          </div>
+
           {alert.visible && (
             <div className={`vote-alert ${alert.type}`} role="alert" aria-live="polite">
               <span className="vote-alert-icon">{alert.type === "success" ? "✓" : "!"}</span>
@@ -258,9 +314,9 @@ function Girl() {
             <p style={{ color: "#ffe6a3", textAlign: "center", gridColumn: "1 / -1" }}>No female candidates found in the database.</p>
           ) : (
             candidatesList.map((candidate, idx) => {
-              const titleList = candidate.titles && candidate.titles.length > 0
+              const titleList = (candidate.titles && candidate.titles.length > 0)
                 ? candidate.titles
-                : [candidate.titleName || candidate.category || "Queen"];
+                : (titlesList.length > 0 ? titlesList : [candidate.titleName || candidate.category || "Queen"]);
 
               return (
                 <article className="candidate-card" key={candidate.id || idx}>
@@ -281,29 +337,6 @@ function Girl() {
                     <div className="candidate-info-box"><span>Talent</span><strong>{candidate.talent || "-"}</strong></div>
                   </div>
 
-                  {/* <div className="candidate-titles-row" style={{ display: "flex", flexWrap: "wrap", gap: "8px", margin: "12px 0" }}>
-                    {titleList.map((title) => {
-                      const studentCount = Number(candidate.titleStudentVoteCounts?.[title] ?? 0);
-                      const teacherCount = Number(candidate.titleTeacherVoteCounts?.[title] ?? 0);
-
-                      return (
-                        <span key={`${candidate.id}-${title}`} className="candidate-title-chip" style={{
-                          padding: "6px 10px",
-                          borderRadius: "999px",
-                          background: "rgba(255, 227, 150, 0.16)",
-                          color: "#ffe7a3",
-                          border: "1px solid rgba(255,227,150,0.4)",
-                          fontSize: "12px",
-                          fontWeight: "700",
-                          letterSpacing: "0.04em",
-                          textTransform: "uppercase"
-                        }}>
-                           {title} • S:{studentCount} T:{teacherCount}
-                        </span>
-                      );
-                    })}
-                  </div> */}
-
                   <div className="single-vote-box" style={{ width: "100%", display: "grid", gap: "10px" }}>
                     {titleList.map((category) => {
                       const sparkleKey = candidate.id + "-" + category;
@@ -312,19 +345,26 @@ function Girl() {
                         (t) => t.toLowerCase() === category.toLowerCase()
                       );
                       const isSelected = isCategoryVoted;
+                      const buttonDisabled = Boolean(isCategoryVoted || isVotingClosed);
+                      const buttonText = isCategoryVoted
+                        ? `VOTED FOR ${category.toUpperCase()}`
+                        : isVotingClosed
+                          ? `VOTING CLOSED`
+                          : `VOTE FOR ${category.toUpperCase()}`;
+
                       return (
                         <button
                           key={`${candidate.id}-${category}`}
                           type="button"
-                          disabled={Boolean(isCategoryVoted || student?.hasVoted)}
+                          disabled={buttonDisabled}
                           className={`category-tile ${isSelected ? "selected" : ""} ${
                             isSparkling ? "twinkle-pop" : ""
-                          }`}
+                          } ${isVotingClosed && !isSelected ? "voting-ended-btn" : ""}`}
                           style={{ width: "100%" }}
                           aria-pressed={isSelected}
                           onClick={() => confirmVote(candidate, category)}
                         >
-                          {isCategoryVoted ? `VOTED FOR ${category.toUpperCase()}` : `VOTE FOR ${category.toUpperCase()}`}
+                          {buttonText}
                           {isSparkling && <Sparkles key={activeSparkle.id} burst={true} />}
                         </button>
                       );

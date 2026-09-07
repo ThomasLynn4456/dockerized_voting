@@ -1,10 +1,10 @@
 package com.voting.Gp3.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.time.Instant;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -23,14 +23,16 @@ import com.voting.Gp3.Candidate;
 import com.voting.Gp3.Title;
 import com.voting.Gp3.TitleCandidate;
 import com.voting.Gp3.Voter;
+import com.voting.Gp3.entity.ElectionSetting;
+import com.voting.Gp3.entity.PublishedTitleResult;
 import com.voting.Gp3.repository.CandidateRepository;
+import com.voting.Gp3.repository.PublishedTitleResultRepository;
 import com.voting.Gp3.repository.TitleCandidateRepository;
 import com.voting.Gp3.repository.TitleRepository;
 import com.voting.Gp3.repository.VoterRepository;
+import com.voting.Gp3.service.ElectionSettingService;
 import com.voting.Gp3.service.TeacherVoteTokenService;
 import com.voting.Gp3.service.TitleTableService;
-import com.voting.Gp3.entity.PublishedTitleResult;
-import com.voting.Gp3.repository.PublishedTitleResultRepository;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -45,6 +47,7 @@ public class TitleController {
     private final VoterRepository voterRepository;
     private final TeacherVoteTokenService teacherVoteTokenService;
     private final PublishedTitleResultRepository publishedTitleResultRepository;
+    private final ElectionSettingService electionSettingService;
 
     public TitleController(
             TitleRepository titleRepository,
@@ -53,7 +56,8 @@ public class TitleController {
             TitleTableService titleTableService,
             VoterRepository voterRepository,
             TeacherVoteTokenService teacherVoteTokenService,
-            PublishedTitleResultRepository publishedTitleResultRepository
+            PublishedTitleResultRepository publishedTitleResultRepository,
+            ElectionSettingService electionSettingService
     ) {
         this.titleRepository = titleRepository;
         this.candidateRepository = candidateRepository;
@@ -62,6 +66,7 @@ public class TitleController {
         this.voterRepository = voterRepository;
         this.teacherVoteTokenService = teacherVoteTokenService;
         this.publishedTitleResultRepository = publishedTitleResultRepository;
+        this.electionSettingService = electionSettingService;
     }
 
     // Get all titles
@@ -188,6 +193,40 @@ public class TitleController {
         return titleName == null ? "" : titleName.trim().toLowerCase(Locale.ROOT);
     }
 
+    @GetMapping("/voting-time")
+    public ResponseEntity<?> getVotingTime() {
+        ElectionSetting setting = electionSettingService.getSetting();
+        boolean isClosed = electionSettingService.isVotingClosed();
+        return ResponseEntity.ok(Map.of(
+            "deadline", setting.getVotingDeadline() == null ? "" : setting.getVotingDeadline().toString(),
+            "isClosed", isClosed,
+            "votingClosed", setting.isVotingClosed(),
+            "serverTime", Instant.now().toString()
+        ));
+    }
+
+    @PutMapping("/voting-time")
+    @Transactional
+    public ResponseEntity<?> updateVotingTime(@RequestBody Map<String, Object> payload) {
+        String deadlineStr = payload == null ? null : (String) payload.get("deadline");
+        Boolean closed = payload == null ? null : (Boolean) payload.get("closed");
+        Instant deadline = null;
+        if (deadlineStr != null && !deadlineStr.isBlank()) {
+            try {
+                deadline = Instant.parse(deadlineStr);
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body("Invalid ISO datetime format for deadline.");
+            }
+        }
+        ElectionSetting updated = electionSettingService.updateSetting(deadline, closed);
+        return ResponseEntity.ok(Map.of(
+            "deadline", updated.getVotingDeadline() == null ? "" : updated.getVotingDeadline().toString(),
+            "isClosed", electionSettingService.isVotingClosed(),
+            "votingClosed", updated.isVotingClosed(),
+            "serverTime", Instant.now().toString()
+        ));
+    }
+
     @GetMapping("/result-leaders")
     public List<Map<String, Object>> getPublishedResults() {
         return publishedTitleResultRepository.findAllByOrderByPublishedAtDesc().stream()
@@ -208,8 +247,10 @@ public class TitleController {
             return ResponseEntity.notFound().build();
         }
 
-        int studentWeight = payload == null ? -1 : payload.getOrDefault("studentWeight", -1);
-        int teacherWeight = payload == null ? -1 : payload.getOrDefault("teacherWeight", -1);
+        Integer studentWeightVal = payload == null ? null : payload.get("studentWeight");
+        int studentWeight = studentWeightVal != null ? studentWeightVal : -1;
+        Integer teacherWeightVal = payload == null ? null : payload.get("teacherWeight");
+        int teacherWeight = teacherWeightVal != null ? teacherWeightVal : -1;
         Long requestedCandidateId = payload == null || payload.get("candidateId") == null
                 ? null : payload.get("candidateId").longValue();
         if (studentWeight < 0 || teacherWeight < 0 || studentWeight + teacherWeight != 100) {
@@ -310,6 +351,12 @@ public class TitleController {
             HttpSession session
     ) {
 
+        if (electionSettingService.isVotingClosed()) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body("Voting has ended. The election deadline has passed.");
+        }
+
         Object studentId = session.getAttribute(
                 "verifiedStudentId"
         );
@@ -354,18 +401,11 @@ public class TitleController {
 
         voter.getVotedTitles().add(titleKey);
 
-        long totalGenderTitles = titleRepository.findAll().stream()
-                .filter(t -> t.getGender() != null && title.getGender() != null && t.getGender().equalsIgnoreCase(title.getGender()))
-                .count();
+        List<Title> allTitles = titleRepository.findAll();
+        boolean allTitlesVoted = !allTitles.isEmpty() && allTitles.stream()
+                .allMatch(t -> voter.getVotedTitles().contains(normalizeTitleKey(t.getName())));
 
-        long votedGenderTitles = titleRepository.findAll().stream()
-                .filter(t -> t.getGender() != null && title.getGender() != null && t.getGender().equalsIgnoreCase(title.getGender()))
-                .filter(t -> voter.getVotedTitles().contains(t.getName().toLowerCase().trim()))
-                .count();
-
-        if (votedGenderTitles >= totalGenderTitles || voter.getVotedTitles().size() >= titleRepository.count()) {
-            voter.setHasVoted(true);
-        }
+        voter.setHasVoted(allTitlesVoted);
 
         voterRepository.save(voter);
 

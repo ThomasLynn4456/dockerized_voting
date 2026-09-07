@@ -871,10 +871,19 @@ input {
   transform: scaleX(-1);
 }
 
+.heading-badges-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px auto 0;
+}
+
 .student-pill {
   width: fit-content;
   max-width: calc(100% - 24px);
-  margin: 18px auto 0;
+  margin: 0 auto;
   padding: 8px 13px;
   display: flex;
   align-items: center;
@@ -907,6 +916,43 @@ input {
   box-shadow: 0 0 9px rgba(92, 226, 154, 0.85);
 }
 
+.voting-time-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font: 700 12px/1.2 Arial, sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.voting-time-pill.is-active {
+  background: rgba(234, 179, 8, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  color: #fef08a;
+  box-shadow: 0 0 14px rgba(234, 179, 8, 0.16);
+}
+
+.voting-time-pill.is-active strong {
+  color: #ffffff;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.voting-time-pill.is-closed {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
+.category-tile.voting-ended-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
 .candidates-grid {
   width: min(94%, 1080px);
   grid-template-columns: repeat(2, minmax(280px, 1fr));
@@ -914,70 +960,77 @@ input {
 }
 
 .candidate-card {
-  padding: 16px 16px 18px;
-  border: 1px solid rgba(117, 146, 214, 0.3);
+  position: relative;
+  padding: 18px 18px 22px;
+  border: 1px solid rgba(140, 172, 245, 0.25);
   border-radius: 24px;
   background:
-    linear-gradient(145deg, rgba(29, 46, 94, 0.92), rgba(7, 13, 40, 0.97));
+    linear-gradient(150deg, rgba(26, 42, 88, 0.94) 0%, rgba(8, 14, 42, 0.98) 100%);
   box-shadow:
-    0 24px 55px rgba(0, 0, 0, 0.36),
-    inset 0 1px rgba(255, 255, 255, 0.06);
+    0 24px 55px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 20px rgba(110, 145, 230, 0.05);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s ease, box-shadow 0.35s ease;
 }
 
 .candidate-card::before {
   content: "";
   position: absolute;
-  inset: 0 18% auto;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 220, 126, 0.72), transparent);
+  inset: 0 15% auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 225, 140, 0.85), transparent);
+  border-radius: 999px;
 }
 
 .candidate-card:hover {
-  transform: translateY(-7px);
-  border-color: rgba(255, 215, 112, 0.5);
+  transform: translateY(-8px);
+  border-color: rgba(255, 220, 130, 0.65);
   box-shadow:
-    0 28px 66px rgba(0, 0, 0, 0.48),
-    0 0 28px rgba(62, 96, 177, 0.17);
+    0 32px 70px rgba(0, 0, 0, 0.55),
+    0 0 35px rgba(224, 168, 56, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .candidate-image-box {
   position: relative;
   width: 100%;
-  height: clamp(280px, 34vw, 390px);
+  height: clamp(300px, 36vw, 420px);
   margin: 0 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 225, 145, 0.3);
   border-radius: 18px;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
-}
-
-.candidate-image-box::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: 32%;
-  pointer-events: none;
-  background: linear-gradient(transparent, rgba(3, 7, 26, 0.6));
+  overflow: hidden;
+  background: #090f2b;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .candidate-number-badge {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  z-index: 2;
-  padding: 7px 11px;
-  border: 1px solid rgba(255, 225, 145, 0.55);
+  z-index: 5;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 240, 185, 0.7);
   border-radius: 999px;
-  color: #221703;
-  font: 800 12px/1 Arial, sans-serif;
-  background: linear-gradient(135deg, #ffe292, #e7a834);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+  color: #1a1002;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #fff0ba 0%, #f3ba42 60%, #d4921f 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 
 .candidate-name {
   margin-bottom: 15px;
   font-family: "Playfair Display", serif;
-  font-size: clamp(23px, 2.4vw, 30px);
-  letter-spacing: 0.01em;
+  font-size: clamp(24px, 2.5vw, 32px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff8e7;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .candidate-info-grid {
@@ -988,21 +1041,32 @@ input {
 .candidate-info-box {
   min-height: 64px;
   padding: 10px 12px;
-  border: 1px solid rgba(141, 164, 216, 0.16);
-  border-radius: 13px;
+  border: 1px solid rgba(141, 164, 216, 0.18);
+  border-radius: 14px;
   color: #f2f5ff;
-  background: rgba(10, 20, 54, 0.72);
+  background: rgba(8, 16, 44, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.candidate-card:hover .candidate-info-box {
+  background: rgba(12, 23, 62, 0.85);
+  border-color: rgba(180, 205, 255, 0.28);
 }
 
 .candidate-info-box span {
-  color: #8fa2ca;
+  color: #9cb2db;
   font-size: 10px;
-  letter-spacing: 0.13em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .candidate-info-box strong {
-  color: #eef3ff;
+  color: #ffffff;
   font-size: 14px;
+  font-weight: 700;
 }
 
 .single-vote-box {

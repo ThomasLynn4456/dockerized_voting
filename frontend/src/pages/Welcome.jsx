@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCurrentStudent, saveStudentSession } from "../utils/studentSession";
+import { fetchVotingTime, formatRemainingTime } from "../utils/votingTime";
 import "./Welcome.css";
 
 import logo from "./img/logo.png";
@@ -63,6 +64,29 @@ function Welcome() {
   const [submitting, setSubmitting] = useState(false);
   const [telegramLink, setTelegramLink] = useState(() => loadTelegramLinkPending() ? "launched" : "");
   const [telegramConnected, setTelegramConnected] = useState(() => Boolean(loadWelcomeDraft().telegramChatId));
+  const [votingSchedule, setVotingSchedule] = useState({ deadline: "", isClosed: false, votingClosed: false });
+  const [scheduleError, setScheduleError] = useState("");
+  const [countdown, setCountdown] = useState(null);
+
+  useEffect(() => {
+    fetchVotingTime()
+      .then((schedule) => {
+        setVotingSchedule(schedule);
+        setScheduleError("");
+        setCountdown(schedule.deadline ? formatRemainingTime(schedule.deadline) : null);
+      })
+      .catch((error) => setScheduleError(error.message || "Unable to load voting schedule."));
+  }, []);
+
+  useEffect(() => {
+    if (!votingSchedule.deadline) return undefined;
+    const timer = window.setInterval(() => {
+      setCountdown(formatRemainingTime(votingSchedule.deadline));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [votingSchedule.deadline]);
+
+  const isVotingClosed = Boolean(votingSchedule.votingClosed || votingSchedule.isClosed || countdown?.expired);
 
   useEffect(() => {
     try {
@@ -327,6 +351,25 @@ function Welcome() {
         <p className="welcome-tagline">
           Your Vote • Your Voice • Your Legacy
         </p>
+
+        <div className={`welcome-schedule ${isVotingClosed ? "is-closed" : ""}`} role="status">
+          <span className="welcome-schedule-icon" aria-hidden="true">
+            <i className={`fa-solid ${isVotingClosed ? "fa-lock" : "fa-clock"}`} />
+          </span>
+          <div>
+            <strong>{isVotingClosed ? "Voting is closed" : "Voting schedule"}</strong>
+            {scheduleError ? (
+              <span>{scheduleError}</span>
+            ) : votingSchedule.deadline ? (
+              <>
+                <span>Closes {new Date(votingSchedule.deadline).toLocaleString()}</span>
+                <span>{isVotingClosed ? "Votes are no longer being accepted." : `Time remaining: ${countdown?.text || "calculating..."}`}</span>
+              </>
+            ) : (
+              <span>Voting is currently open. No closing time has been set.</span>
+            )}
+          </div>
+        </div>
 
         {/* ================= FORM ================= */}
         <form

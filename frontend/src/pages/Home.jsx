@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchCurrentStudent, logoutStudent } from "../utils/studentSession";
+import { fetchVotingTime, formatRemainingTime } from "../utils/votingTime";
 import "./Home.css";
 
 // Importing images from pages/img/
@@ -13,19 +14,43 @@ function Home() {
     const [student, setStudent] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+    const [votingSchedule, setVotingSchedule] = useState({ deadline: "", isClosed: false });
+    const [countdown, setCountdown] = useState(null);
 
     useEffect(() => {
         async function checkSession() {
-            const currentStudent = await fetchCurrentStudent();
+            const [currentStudent, timeData] = await Promise.all([
+                fetchCurrentStudent(),
+                fetchVotingTime()
+            ]);
             if (!currentStudent) {
                 navigate("/welcome");
                 return;
             }
             setStudent(currentStudent);
+            if (timeData) {
+                setVotingSchedule(timeData);
+                if (timeData.deadline) {
+                    setCountdown(formatRemainingTime(timeData.deadline));
+                }
+            }
             setLoading(false);
         }
         checkSession();
     }, [navigate]);
+
+    useEffect(() => {
+        if (!votingSchedule?.deadline) return;
+        const interval = setInterval(() => {
+            const remaining = formatRemainingTime(votingSchedule.deadline);
+            setCountdown(remaining);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [votingSchedule]);
+
+    const isVotingClosed = Boolean(
+        votingSchedule?.votingClosed || votingSchedule?.isClosed || (countdown && countdown.expired)
+    );
 
     const handleLogout = async () => {
         await logoutStudent();
@@ -65,6 +90,18 @@ function Home() {
                             </div>
                         </div>
                         <div className="student-status-actions">
+                            {isVotingClosed ? (
+                                <span className="eligibility-badge is-closed-badge" style={{ background: "rgba(239, 68, 68, 0.18)", borderColor: "rgba(239, 68, 68, 0.45)", color: "#fca5a5" }}>
+                                    <i className="fa-solid fa-lock" aria-hidden="true" />
+                                    <span>Voting closed</span>
+                                </span>
+                            ) : votingSchedule?.deadline && countdown && !countdown.expired ? (
+                                <span className="eligibility-badge is-timer-badge" style={{ background: "rgba(234, 179, 8, 0.18)", borderColor: "rgba(234, 179, 8, 0.45)", color: "#fef08a" }}>
+                                    <i className="fa-solid fa-clock" aria-hidden="true" />
+                                    <span>Closes in: {countdown.text}</span>
+                                </span>
+                            ) : null}
+
                             <span className="eligibility-badge">
                                 <i className={student.hasVoted ? "fa-solid fa-circle-check" : "fa-solid fa-check"} aria-hidden="true" />
                                 <span>{student.hasVoted ? "Vote submitted" : "Eligible to vote"}</span>
