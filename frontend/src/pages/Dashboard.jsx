@@ -674,10 +674,15 @@ function Dashboard() {
                     ? editingId
                     : (Array.isArray(savedPayload) ? savedPayload[0]?.id : savedPayload?.id);
                 if (savedCandidateId) {
-                    await Promise.all(galleryImages.map((image) => fetch(`${API_URL}/${savedCandidateId}/images`, {
+                    const galleryResponses = await Promise.all(galleryImages.map((image) => fetch(`${API_URL}/${savedCandidateId}/images`, {
                         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ image }),
                     })));
+                    const failedGalleryResponse = galleryResponses.find((galleryResponse) => !galleryResponse.ok);
+                    if (failedGalleryResponse) {
+                        const galleryError = await failedGalleryResponse.text();
+                        throw new Error(galleryError || `Unable to add gallery image (HTTP ${failedGalleryResponse.status}).`);
+                    }
                 }
             }
 
@@ -1484,7 +1489,6 @@ function Dashboard() {
                         dashboardSections.map((section) => {
                             const sectionName = section.name;
                             const sectionCandidates = section.candidates || [];
-                            const sectionVotes = sectionCandidates.reduce((sum, candidate) => sum + Number(candidate.votes || 0), 0);
                             const leadingCandidate = sectionCandidates.reduce((leader, candidate) => {
                                 if (!leader) return candidate;
                                 return Number(candidate.votes || 0) > Number(leader.votes || 0) ? candidate : leader;

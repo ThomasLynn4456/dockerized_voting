@@ -67,19 +67,26 @@ public class ImageStorageService {
         String metadata = parts[0];
         String imageData = parts.length > 1 ? parts[1] : "";
 
+        String normalizedMetadata = metadata.toLowerCase(java.util.Locale.ROOT);
         String extension = ".jpg";
-        if (metadata.contains("image/png")) {
+        if (normalizedMetadata.contains("image/png")) {
             extension = ".png";
-        } else if (metadata.contains("image/jpeg") || metadata.contains("image/jpg")) {
+        } else if (normalizedMetadata.contains("image/jpeg") || normalizedMetadata.contains("image/jpg")) {
             extension = ".jpg";
-        } else if (metadata.contains("image/gif")) {
+        } else if (normalizedMetadata.contains("image/gif")) {
             extension = ".gif";
-        } else if (metadata.contains("image/webp")) {
+        } else if (normalizedMetadata.contains("image/webp")) {
             extension = ".webp";
-        } else if (metadata.contains("image/bmp")) {
+        } else if (normalizedMetadata.contains("image/bmp")) {
             extension = ".bmp";
-        } else if (metadata.contains("image/svg+xml")) {
+        } else if (normalizedMetadata.contains("image/svg+xml")) {
             extension = ".svg";
+        } else if (normalizedMetadata.contains("image/avif")) {
+            extension = ".avif";
+        } else if (normalizedMetadata.contains("image/heic")) {
+            extension = ".heic";
+        } else if (normalizedMetadata.contains("image/heif")) {
+            extension = ".heif";
         }
 
         byte[] decodedBytes;

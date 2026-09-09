@@ -156,7 +156,7 @@ public class TelegramOtpService {
                             .contentType(MediaType.APPLICATION_JSON)
                             .body(Map.of(
                                     "chat_id", chatId,
-                                    "text", "✅ Your Telegram account has been linked successfully!\n\n" + votingPageUrl
+                                    "text", " Your Telegram account has been linked successfully!\n\n" + votingPageUrl
                             ))
                             .retrieve()
                             .toBodilessEntity();

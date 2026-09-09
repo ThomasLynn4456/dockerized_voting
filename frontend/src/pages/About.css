@@ -220,6 +220,18 @@
   margin: 0;
 }
 
+.contact-link {
+    color: ivory;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.25s ease;
+}
+
+.contact-link:hover {
+    color: #ffd700;
+    transform: translateX(3px);
+}
+
 @media (max-width: 820px) {
   .about-header {
     padding: 10px 14px;

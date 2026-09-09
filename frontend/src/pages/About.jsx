@@ -50,7 +50,7 @@ function About() {
             <h2>Voting Rules</h2>
             <p>
               Select one title per candidate and check your choices carefully before submitting. <br /> 
-              Linmit: One vote per account.
+              Limit: One vote per account.
               
             </p>
           </article>
@@ -59,8 +59,10 @@ function About() {
             <i className="fa-solid fa-envelope" aria-hidden="true"></i>
             <h2>Contact</h2>
             <p>
-              For technical support or general inquiries, reach out to our support team at <a href="mailto:support@fresherswelcome.com">support@fresherswelcome.com</a> or
-              call 09-457555550. Our team is here to assist you promptly.
+              For technical support or general inquiries, reach out to our support team at <a href="mailto:quantivex3@gmail.com" className="contact-link">quantivex3@gmail.com</a> or
+              call  <a href="tel: 09457552640" className="contact-link">
+                09-457552640</a>. Our team is here to assist you promptly. <br />
+              Developers: Quantivex Members < br /> (Mentor - Mg Zin Lin Htet) 
             </p>
           </article>
         </section>

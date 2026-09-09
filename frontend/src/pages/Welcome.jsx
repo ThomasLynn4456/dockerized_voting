@@ -155,8 +155,8 @@ function Welcome() {
     try {
       const response = await fetch("/api/telegram/link", { credentials: "include" });
       const data = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(responseMessage(data, "Telegram bot is not available. Please try again later."));
+      if (!response.ok) { 
+        throw new Error(responseMessage(data, "Telegram botis not available. Please try again later."));
       }
       if (data?.url) {
         setTelegramLink("launched");
